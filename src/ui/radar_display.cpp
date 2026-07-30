@@ -762,7 +762,11 @@ void drawDetailsPanel() {
   if (ac->reg[0] != '\0') {
     snprintf(buf, sizeof(buf), "%s (%s)", ac->callsign, ac->reg);
   } else {
-    snprintf(buf, sizeof(buf), "%s", ac->callsign);
+    if (ac->callsign[0] == '~' || ac->callsign[0] == '\0') {
+      snprintf(buf, sizeof(buf), "Hex: %s", ac->hex);
+    } else {
+      snprintf(buf, sizeof(buf), "%s", ac->callsign);
+    }
   }
   tft.drawString(buf, 4, ly);
   ly += lh;
@@ -770,8 +774,10 @@ void drawDetailsPanel() {
   tft.setTextColor(radar::kColorTagType, radar::kColorBackground);
   if (ac->desc[0] != '\0') {
     tft.drawString(ac->desc, 4, ly);
-  } else {
+  } else if (ac->type[0] != '\0') {
     tft.drawString(ac->type, 4, ly);
+  } else {
+    tft.drawString("Unknown Aircraft Type", 4, ly);
   }
   ly += lh;
   
