@@ -11,6 +11,7 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
 * **Touchscreen Support**: Tap on any aircraft on the screen to view detailed information including its registration, model, altitude, speed, and distance from your location. Tapping an empty space zooms the radar range.
 * **Aesthetics**: Fully themed using the gorgeous [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) color palette.
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
+* **Easy Setup**: Built-in Wi-Fi captive portal for configuring network credentials, radar coordinates, and display options—all matching the Catppuccin Mocha visual aesthetic.
 
 ## :hammer_and_wrench: Hardware Supported
 Currently configured and tested on:
