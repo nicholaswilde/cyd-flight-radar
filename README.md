@@ -1,4 +1,4 @@
-# ✈️ cyd-flight-radar
+# ✈️ cCYD Fight- Rdar
 
 A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb.fi API.
 
