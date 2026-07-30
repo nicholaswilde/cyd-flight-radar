@@ -73,3 +73,7 @@ Testing/
 
 # Gemini / Agent
 .gemini/
+
+# Secrets
+secrets.h
+.codegraph/

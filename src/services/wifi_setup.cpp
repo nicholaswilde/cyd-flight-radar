@@ -1,10 +1,9 @@
 #include "services/wifi_setup.h"
 
 #include <WiFi.h>
-#include <WiFiManager.h>
-
-#include <cstdio>
-
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <ImprovWiFiLibrary.h>
 #include <Preferences.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
@@ -17,6 +16,15 @@
 #include "services/radar_location.h"
 #include "ui/radar_range.h"
 #include "ui/status_screens.h"
+
+#if __has_include("secrets.h")
+#include "secrets.h"
+#endif
+
+#ifndef WIFI_SSID
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+#endif
 
 portMUX_TYPE s_boot_mux = portMUX_INITIALIZER_UNLOCKED;
 volatile bool s_boot_tap_pending = false;
@@ -54,75 +62,41 @@ void initBootButton() {
 
 namespace {
 
-/** Separate from planeradar prefs (rangeInit) to avoid NVS handle conflicts. */
 constexpr char kWifiPrefsNamespace[] = "wifi";
 constexpr char kPrefsForcePortalKey[] = "portal";
+constexpr char kPrefsSsidKey[] = "ssid";
+constexpr char kPrefsPassKey[] = "pass";
 
 bool s_force_config_portal = false;
-WiFiManager s_wm;
-bool s_wm_configured = false;
 
-void ensureWifiManager();
-void startLanWebPortal();
+WebServer* s_webServer = nullptr;
+DNSServer* s_dnsServer = nullptr;
+ImprovWiFi* s_improv = nullptr;
+String s_cachedNetworksHTML = "";
+bool s_ap_mode_active = false;
+
 void stopLanWebPortal();
 bool wifiLinkUp();
 
-constexpr int kCoordParamLen = 20;
-constexpr char kCoordInputAttrs[] =
-    " type=\"number\" step=\"0.000001\"";
-
-WiFiManagerParameter s_param_lat("radar_lat", "Latitude (deg)", "0",
-                                kCoordParamLen, kCoordInputAttrs);
-WiFiManagerParameter s_param_lon("radar_lon", "Longitude (deg)", "0",
-                                kCoordParamLen, kCoordInputAttrs);
-
-char s_miles_checkbox_attrs[32] = "type=\"checkbox\"";
-WiFiManagerParameter s_param_miles("use_miles", "Display distances in miles", "T", 2,
-                                   s_miles_checkbox_attrs, WFM_LABEL_AFTER);
-
-char s_runways_checkbox_attrs[32] = "type=\"checkbox\"";
-WiFiManagerParameter s_param_runways("show_runways", "Show airport runways", "T", 2,
-                                     s_runways_checkbox_attrs, WFM_LABEL_AFTER);
-
-void refreshPortalParamDefaults() {
-  char lat_buf[kCoordParamLen + 1];
-  char lon_buf[kCoordParamLen + 1];
-  snprintf(lat_buf, sizeof(lat_buf), "%.6f", services::location::lat());
-  snprintf(lon_buf, sizeof(lon_buf), "%.6f", services::location::lon());
-  s_param_lat.setValue(lat_buf, kCoordParamLen);
-  s_param_lon.setValue(lon_buf, kCoordParamLen);
-  snprintf(s_miles_checkbox_attrs, sizeof(s_miles_checkbox_attrs), "type=\"checkbox\"%s",
-           ui::radar::useMiles() ? " checked" : "");
-  s_param_miles.setValue("T", 2);
-  snprintf(s_runways_checkbox_attrs, sizeof(s_runways_checkbox_attrs),
-           "type=\"checkbox\"%s", ui::radar::showRunways() ? " checked" : "");
-  s_param_runways.setValue("T", 2);
-}
-
-void onPortalParamsSaved() {
-  if (!services::location::saveFromStrings(s_param_lat.getValue(),
-                                           s_param_lon.getValue())) {
-    Serial.println("Invalid lat/lon in portal — keeping previous location");
-  }
-  ui::radar::saveMilesFromPortal(s_param_miles.getValue());
-  ui::radar::saveRunwaysFromPortal(s_param_runways.getValue());
-}
-
-void attachPortalParams(WiFiManager& wm) {
-  refreshPortalParamDefaults();
-  wm.addParameter(&s_param_lat);
-  wm.addParameter(&s_param_lon);
-  wm.addParameter(&s_param_miles);
-  wm.addParameter(&s_param_runways);
-  wm.setSaveParamsCallback(onPortalParamsSaved);
+String getAPSSID() {
+    String mac = WiFi.macAddress();
+    String cleanMac = "";
+    for (size_t i = 0; i < mac.length(); i++) {
+        if (mac[i] != ':') {
+            cleanMac += mac[i];
+        }
+    }
+    String suffix = (cleanMac.length() >= 4) ? String(cleanMac.c_str() + cleanMac.length() - 4) : "ESP32";
+    for (size_t i = 0; i < suffix.length(); i++) {
+        suffix[i] = toupper(suffix[i]);
+    }
+    return String(config::kPortalApName) + "-" + suffix;
 }
 
 void markForceConfigPortal() {
   s_force_config_portal = true;
   Preferences prefs;
-  if (!prefs.begin(kWifiPrefsNamespace, false)) {
-    return;
-  }
+  if (!prefs.begin(kWifiPrefsNamespace, false)) return;
   prefs.putBool(kPrefsForcePortalKey, true);
   prefs.end();
 }
@@ -139,14 +113,10 @@ bool consumeForceConfigPortal() {
   }
 
   Preferences prefs;
-  if (!prefs.begin(kWifiPrefsNamespace, true)) {
-    return false;
-  }
+  if (!prefs.begin(kWifiPrefsNamespace, true)) return false;
   const bool pending = prefs.getBool(kPrefsForcePortalKey, false);
   prefs.end();
-  if (!pending) {
-    return false;
-  }
+  if (!pending) return false;
 
   if (prefs.begin(kWifiPrefsNamespace, false)) {
     prefs.remove(kPrefsForcePortalKey);
@@ -156,17 +126,36 @@ bool consumeForceConfigPortal() {
 }
 
 bool storedWifiCredentials() {
-  wifi_mode_t mode = WIFI_MODE_NULL;
-  if (esp_wifi_get_mode(&mode) != ESP_OK || mode == WIFI_MODE_NULL) {
-    WiFi.mode(WIFI_STA);
-    delay(50);
-  }
+  Preferences prefs;
+  if (!prefs.begin(kWifiPrefsNamespace, true)) return false;
+  String ssid = prefs.getString(kPrefsSsidKey, "");
+  prefs.end();
+  return ssid.length() > 0;
+}
 
-  wifi_config_t conf = {};
-  if (esp_wifi_get_config(WIFI_IF_STA, &conf) != ESP_OK) {
-    return false;
+String getStoredSSID() {
+  Preferences prefs;
+  if (!prefs.begin(kWifiPrefsNamespace, true)) return "";
+  String ssid = prefs.getString(kPrefsSsidKey, "");
+  prefs.end();
+  return ssid;
+}
+
+String getStoredPass() {
+  Preferences prefs;
+  if (!prefs.begin(kWifiPrefsNamespace, true)) return "";
+  String pass = prefs.getString(kPrefsPassKey, "");
+  prefs.end();
+  return pass;
+}
+
+void saveWifiCredentials(const String& ssid, const String& pass) {
+  Preferences prefs;
+  if (prefs.begin(kWifiPrefsNamespace, false)) {
+    prefs.putString(kPrefsSsidKey, ssid);
+    prefs.putString(kPrefsPassKey, pass);
+    prefs.end();
   }
-  return conf.sta.ssid[0] != '\0';
 }
 
 void eraseWifiCredentials() {
@@ -175,14 +164,14 @@ void eraseWifiCredentials() {
   WiFi.mode(WIFI_OFF);
   delay(100);
 
-  ensureWifiManager();
-  WiFi.persistent(true);
-  s_wm.resetSettings();
-  s_wm.erase();
-  WiFi.disconnect(true, true);
-  WiFi.persistent(false);
+  Preferences prefs;
+  if (prefs.begin(kWifiPrefsNamespace, false)) {
+    prefs.remove(kPrefsSsidKey);
+    prefs.remove(kPrefsPassKey);
+    prefs.end();
+  }
 
-  WiFi.mode(WIFI_OFF);
+  WiFi.disconnect(true, true);
   delay(100);
 }
 
@@ -194,84 +183,206 @@ void resetWifiCredentials() {
   Serial.println("WiFi credentials, location, and units cleared");
 }
 
-void onConfigPortalApStarted(WiFiManager*) {
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
-  statusScreenPortal();
-#ifdef WM_MDNS
-  if (MDNS.begin(config::kPortalHostname)) {
-    MDNS.addService("http", "tcp", 80);
-    Serial.printf("Setup portal: http://%s.local (or http://%s)\n",
-                  config::kPortalHostname, config::kPortalIp);
-  } else {
-    Serial.printf("Setup portal: http://%s (mDNS unavailable)\n", config::kPortalIp);
-  }
-#else
-  Serial.printf("Setup portal: http://%s\n", config::kPortalIp);
-#endif
-}
-
 bool wifiLinkUp() {
   return WiFi.status() == WL_CONNECTED &&
          WiFi.localIP() != IPAddress(0, 0, 0, 0);
 }
 
-void ensureWifiManager() {
-  if (s_wm_configured) {
-    return;
-  }
-  s_wm.setConfigPortalTimeout(config::kWifiPortalTimeoutSec);
-  s_wm.setAPStaticIPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1),
-                           IPAddress(255, 255, 255, 0));
-  s_wm.setHostname(config::kPortalHostname);
-  s_wm.setAPCallback(onConfigPortalApStarted);
-  attachPortalParams(s_wm);
+void handleRoot() {
+    int16_t scanStatus = WiFi.scanComplete();
+    if (scanStatus >= 0) {
+        s_cachedNetworksHTML = "";
+        for (int i = 0; i < scanStatus; ++i) {
+            String ssidName = WiFi.SSID(i);
+            int32_t rssi = WiFi.RSSI(i);
+            s_cachedNetworksHTML += "<div class='net-item' onclick='selectSSID(\"" + ssidName + "\")'>";
+            s_cachedNetworksHTML += "<span>" + ssidName + "</span>";
+            s_cachedNetworksHTML += "<span style='color: #a6adc8; font-size: 12px;'>" + String(rssi) + " dBm</span>";
+            s_cachedNetworksHTML += "</div>";
+        }
+        WiFi.scanDelete();
+    } else if (scanStatus == WIFI_SCAN_FAILED) {
+        WiFi.scanNetworks(true, false, false, 150);
+        if (s_cachedNetworksHTML.length() == 0 || s_cachedNetworksHTML.indexOf("Scanning in progress") != -1) {
+            s_cachedNetworksHTML = "<div class='net-item' style='color: #a6adc8;'>Scanning in progress... Please refresh.</div>";
+        }
+    }
 
-  const char custom_css[] =
-      "<style>\n"
-      "body { font-family: 'Inter', system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; }\n"
-      "button { background: #cba6f7; color: #11111b; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; transition: background 0.2s; }\n"
-      "button:hover { background: #f5c2e7; }\n"
-      "input, select { background: #313244 !important; color: #cdd6f4 !important; border: 1px solid #45475a !important; border-radius: 6px; padding: 12px; }\n"
-      "input:focus, select:focus { outline: none; border-color: #f5c2e7 !important; }\n"
-      ".wrap { background: #181825; border-radius: 12px; padding: 30px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); border: 1px solid #313244; }\n"
-      "h1, h2, h3 { color: #f5c2e7; }\n"
-      "a { color: #cba6f7; }\n"
-      "a:hover { color: #f5c2e7; }\n"
-      ".msg { color: #a6adc8; }\n"
-      ".q { color: #a6adc8; }\n"
-      "</style>\n";
-  s_wm.setCustomHeadElement(custom_css);
+    String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+    if (scanStatus == WIFI_SCAN_RUNNING || scanStatus == WIFI_SCAN_FAILED) {
+        html += "<meta http-equiv='refresh' content='3'>";
+    }
+    html += "<title>CYD Flight Radar Setup</title>";
+    html += "<style>";
+    html += "body { font-family: 'Inter', system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }";
+    html += ".card { background: #181825; border-radius: 12px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); border: 1px solid #313244; }";
+    html += "h2 { color: #f5c2e7; margin-top: 0; margin-bottom: 20px; font-weight: 600; text-align: center; }";
+    html += "label { display: block; margin-bottom: 8px; color: #a6adc8; font-size: 14px; }";
+    html += "input[type='text'], input[type='password'], input[type='number'] { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #45475a; background: #313244; color: #cdd6f4; font-size: 16px; box-sizing: border-box; }";
+    html += "input:focus { outline: none; border-color: #f5c2e7; }";
+    html += "input[type='checkbox'] { transform: scale(1.5); margin-right: 10px; accent-color: #cba6f7; }";
+    html += ".checkbox-group { display: flex; align-items: center; margin-bottom: 20px; }";
+    html += ".checkbox-group label { margin-bottom: 0; color: #cdd6f4; }";
+    html += "button { width: 100%; padding: 12px; background: #cba6f7; border: none; border-radius: 6px; color: #11111b; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }";
+    html += "button:hover { background: #f5c2e7; }";
+    html += ".net-list { margin-bottom: 20px; max-height: 150px; overflow-y: auto; border: 1px solid #313244; border-radius: 6px; padding: 10px; background: #11111b; }";
+    html += ".net-item { display: flex; justify-content: space-between; padding: 8px; cursor: pointer; border-bottom: 1px solid #1e1e2e; }";
+    html += ".net-item:last-child { border-bottom: none; }";
+    html += ".net-item:hover { background: #313244; color: #f5c2e7; }";
+    html += "</style>";
+    html += "<script>";
+    html += "function selectSSID(ssid) { document.getElementById('ssid').value = ssid; }";
+    html += "</script>";
+    html += "</head><body>";
+    html += "<div class='card'>";
+    html += "<h2>Device Configuration</h2>";
+    html += "<form method='POST' action='/save'>";
+    
+    html += "<div style='display: flex; justify-content: space-between; align-items: center;'>";
+    html += "<label style='margin-bottom: 0;'>Select Network</label>";
+    html += "<a href='/scan' style='color: #cba6f7; font-size: 12px; text-decoration: none;'>\xE2\x86\xBA Refresh</a>";
+    html += "</div>";
+    html += "<div style='height: 8px;'></div>";
+    
+    html += "<div class='net-list'>";
+    html += s_cachedNetworksHTML;
+    html += "</div>";
+    
+    html += "<label for='ssid'>SSID</label>";
+    html += "<input type='text' id='ssid' name='ssid' placeholder='SSID name' value='" + getStoredSSID() + "'>";
+    
+    html += "<label for='pass'>Password</label>";
+    html += "<input type='password' id='pass' name='pass' placeholder='Password'>";
+    
+    html += "<label for='lat'>Latitude (deg)</label>";
+    html += "<input type='number' step='0.000001' id='lat' name='lat' value='" + String(services::location::lat(), 6) + "'>";
+    
+    html += "<label for='lon'>Longitude (deg)</label>";
+    html += "<input type='number' step='0.000001' id='lon' name='lon' value='" + String(services::location::lon(), 6) + "'>";
+    
+    html += "<div class='checkbox-group'>";
+    html += "<input type='checkbox' id='miles' name='miles' " + String(ui::radar::useMiles() ? "checked" : "") + ">";
+    html += "<label for='miles'>Display distances in miles</label>";
+    html += "</div>";
+    
+    html += "<div class='checkbox-group'>";
+    html += "<input type='checkbox' id='runways' name='runways' " + String(ui::radar::showRunways() ? "checked" : "") + ">";
+    html += "<label for='runways'>Show airport runways</label>";
+    html += "</div>";
+    
+    html += "<button type='submit'>Save & Apply</button>";
+    html += "</form>";
+    html += "</div>";
+    html += "</body></html>";
 
-  s_wm_configured = true;
+    s_webServer->send(200, "text/html", html);
+}
+
+void handleSave() {
+    String ssid = s_webServer->arg("ssid");
+    String pass = s_webServer->arg("pass");
+    String lat = s_webServer->arg("lat");
+    String lon = s_webServer->arg("lon");
+    bool useMiles = s_webServer->hasArg("miles");
+    bool showRunways = s_webServer->hasArg("runways");
+
+    Serial.printf("[WiFi] Saved new configuration via portal.\n");
+
+    String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+    html += "<title>Credentials Saved</title>";
+    html += "<style>";
+    html += "body { font-family: 'Inter', system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }";
+    html += ".card { background: #181825; border-radius: 12px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); border: 1px solid #313244; text-align: center; }";
+    html += "h2 { color: #a6e3a1; margin-top: 0; margin-bottom: 20px; }";
+    html += "p { color: #cdd6f4; margin-bottom: 20px; line-height: 1.5; }";
+    html += "</style></head><body>";
+    html += "<div class='card'>";
+    html += "<h2>Configuration Saved</h2>";
+    html += "<p>Applying settings...</p>";
+    html += "<p>The device will now attempt to connect. You can close this page.</p>";
+    html += "</div>";
+    html += "</body></html>";
+
+    s_webServer->send(200, "text/html", html);
+    delay(1000);
+
+    if (ssid.length() > 0) {
+        saveWifiCredentials(ssid, pass);
+    }
+    
+    if (!services::location::saveFromStrings(lat.c_str(), lon.c_str())) {
+        Serial.println("Invalid lat/lon in portal — keeping previous location");
+    }
+    ui::radar::saveMilesFromPortal(useMiles ? "T" : "F");
+    ui::radar::saveRunwaysFromPortal(showRunways ? "T" : "F");
+
+    ESP.restart();
+}
+
+void handleNotFound() {
+    if (s_ap_mode_active) {
+        s_webServer->sendHeader("Location", "http://192.168.4.1/", true);
+        s_webServer->send(302, "text/plain", "");
+    } else {
+        s_webServer->send(404, "text/plain", "Not Found");
+    }
+}
+
+void setupWebServer() {
+    if (s_webServer) return;
+    s_webServer = new WebServer(80);
+    s_webServer->on("/", handleRoot);
+    s_webServer->on("/save", handleSave);
+    s_webServer->on("/scan", []() {
+        WiFi.scanNetworks(true, false, false, 150);
+        String html = "<!DOCTYPE html><html><head>";
+        html += "<meta http-equiv=\"refresh\" content=\"3;url=/\">";
+        html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+        html += "<title>Scanning...</title>";
+        html += "<style>";
+        html += "body { font-family: 'Inter', system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }";
+        html += ".card { background: #181825; border-radius: 12px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); border: 1px solid #313244; text-align: center; }";
+        html += "h2 { color: #f5c2e7; margin-top: 0; }";
+        html += "p { color: #a6adc8; }";
+        html += "</style></head><body>";
+        html += "<div class='card'><h2>Scanning for Wi-Fi...</h2><p>Please wait while we refresh the network list.</p></div>";
+        html += "</body></html>";
+        s_webServer->send(200, "text/html", html);
+    });
+    s_webServer->onNotFound(handleNotFound);
+    s_webServer->begin();
 }
 
 void startLanWebPortal() {
-  if (!wifiLinkUp() || s_wm.getWebPortalActive() ||
-      s_wm.getConfigPortalActive()) {
+  if (!wifiLinkUp() || s_webServer != nullptr) {
     return;
   }
-  refreshPortalParamDefaults();
-  WiFi.mode(WIFI_STA);
-  s_wm.setConfigPortalBlocking(false);
+  setupWebServer();
 #ifdef WM_MDNS
   MDNS.end();
   if (MDNS.begin(config::kPortalHostname)) {
     MDNS.addService("http", "tcp", 80);
   }
 #endif
-  s_wm.startWebPortal();
   Serial.printf("LAN config: http://%s.local or http://%s\n",
                 config::kPortalHostname, WiFi.localIP().toString().c_str());
 }
 
 void stopLanWebPortal() {
-  if (!s_wm.getWebPortalActive()) {
-    return;
+  if (s_webServer) {
+    s_webServer->stop();
+    delete s_webServer;
+    s_webServer = nullptr;
   }
-  s_wm.stopWebPortal();
+  if (s_dnsServer) {
+    s_dnsServer->stop();
+    delete s_dnsServer;
+    s_dnsServer = nullptr;
+  }
 #ifdef WM_MDNS
   MDNS.end();
 #endif
+  s_ap_mode_active = false;
 }
 
 void prepareSta() {
@@ -315,8 +426,8 @@ bool tryConnectWithUi(const String& ssid, const String& pass, bool show_ui) {
 
   for (uint8_t attempt = 1; attempt <= config::kWifiConnectAttempts; ++attempt) {
     if (attempt > 1) {
-      Serial.printf("WiFi connect retry %u/%u\n", attempt,
-                    config::kWifiConnectAttempts);
+      Serial.printf("WiFi connect retry %u/%u\n", (unsigned)attempt,
+                    (unsigned)config::kWifiConnectAttempts);
       WiFi.disconnect(true);
       WiFi.mode(WIFI_OFF);
       delay(400);
@@ -336,13 +447,12 @@ bool connectSavedNetwork(bool show_ui) {
   if (!storedWifiCredentials()) {
     return false;
   }
-
-  ensureWifiManager();
-  const String ssid = s_wm.getWiFiSSID();
+  
+  const String ssid = getStoredSSID();
   if (ssid.length() == 0) {
     return false;
   }
-  const String pass = s_wm.getWiFiPass();
+  const String pass = getStoredPass();
   return tryConnectWithUi(ssid, pass, show_ui);
 }
 
@@ -351,17 +461,83 @@ bool openConfigPortal() {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   delay(50);
+  
   statusScreenPortal();
-  s_wm.setConfigPortalBlocking(false);
-  s_wm.startConfigPortal(config::kPortalApName);
-  while (s_wm.getConfigPortalActive()) {
+  
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.setTxPower(WIFI_POWER_11dBm);
+  delay(100);
+  
+  IPAddress apIP(192, 168, 4, 1);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+  delay(100);
+  
+  String apSSID = getAPSSID();
+  WiFi.softAP(apSSID.c_str());
+  delay(200);
+
+  s_cachedNetworksHTML = "<div class='net-item' style='color: #a6adc8;'>Scanning in progress... Please refresh.</div>";
+  s_ap_mode_active = true;
+
+  s_dnsServer = new DNSServer();
+  s_dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
+  s_dnsServer->start(53, "*", apIP);
+  
+  setupWebServer();
+  
+#ifdef WM_MDNS
+  if (MDNS.begin(config::kPortalHostname)) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.printf("Setup portal: http://%s.local (or http://%s)\n",
+                  config::kPortalHostname, "192.168.4.1");
+  } else {
+    Serial.printf("Setup portal: http://%s (mDNS unavailable)\n", "192.168.4.1");
+  }
+#else
+  Serial.printf("Setup portal: http://%s\n", "192.168.4.1");
+#endif
+
+  while (true) {
     bootButtonPollLongPress();
-    if (s_wm.process()) {
-      return true;
+    
+    if (s_improv) s_improv->handleSerial();
+    s_dnsServer->processNextRequest();
+    s_webServer->handleClient();
+    
+    if (wifiLinkUp()) {
+        return true;
     }
+    
     delay(10);
   }
-  return wifiLinkUp();
+  
+  return false;
+}
+
+void setupImprov() {
+  if (s_improv) return;
+  s_improv = new ImprovWiFi(&Serial);
+  s_improv->setDeviceInfo(ImprovTypes::ChipFamily::CF_ESP32, "CYD-Flight-Radar", "1.0", "CYD Flight Radar", "http://{LOCAL_IPV4}");
+  s_improv->setCustomConnectWiFi([](const char *ssid, const char *password) {
+      Serial.printf("\n[WiFi] Improv connecting to %s...\n", ssid);
+      WiFi.softAPdisconnect(true);
+      WiFi.mode(WIFI_STA);
+      WiFi.disconnect();
+      delay(100);
+      
+      WiFi.begin(ssid, password);
+      int attempts = 0;
+      while (WiFi.status() != WL_CONNECTED && attempts < 16) { 
+          delay(500);
+          attempts++;
+      }
+      return WiFi.status() == WL_CONNECTED;
+  });
+
+  s_improv->onImprovConnected([](const char *ssid, const char *password) {
+      Serial.printf("\n[WiFi] Improv provisioned successfully!\n");
+      saveWifiCredentials(String(ssid), String(password));
+  });
 }
 
 }  // namespace
@@ -433,14 +609,14 @@ bool wifiReconnect() {
 }
 
 void wifiLoop() {
-  ensureWifiManager();
   if (wifiLinkUp()) {
-    if (!s_wm.getWebPortalActive() && !s_wm.getConfigPortalActive()) {
+    if (!s_ap_mode_active && s_webServer == nullptr) {
       startLanWebPortal();
     }
-    if (s_wm.getWebPortalActive() || s_wm.getConfigPortalActive()) {
+    if (s_webServer) {
       bootButtonPollLongPress();
-      s_wm.process();
+      s_webServer->handleClient();
+      if (s_improv) s_improv->handleSerial();
     }
   } else {
     stopLanWebPortal();
@@ -449,7 +625,7 @@ void wifiLoop() {
 
 bool wifiSetupConnect() {
   initBootButton();
-  ensureWifiManager();
+  setupImprov();
 
   const bool force_portal = consumeForceConfigPortal();
   WiFi.setAutoReconnect(false);
@@ -480,6 +656,17 @@ bool wifiSetupConnect() {
     Serial.printf("Connected: %s  IP %s\n", WiFi.SSID().c_str(),
                   WiFi.localIP().toString().c_str());
     return true;
+  }
+
+  if (String(WIFI_SSID) != "YOUR_WIFI_SSID" && String(WIFI_SSID).length() > 0) {
+    Serial.println("Using WiFi credentials from secrets.h");
+    if (tryConnectWithUi(WIFI_SSID, WIFI_PASSWORD, true)) {
+      WiFi.setAutoReconnect(true);
+      Serial.printf("Connected: %s  IP %s\n", WiFi.SSID().c_str(),
+                    WiFi.localIP().toString().c_str());
+      return true;
+    }
+    Serial.println("secrets.h WiFi connection failed, falling back...");
   }
 
   if (storedWifiCredentials() && connectSavedNetwork(true)) {
