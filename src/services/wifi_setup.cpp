@@ -225,6 +225,23 @@ void ensureWifiManager() {
   s_wm.setHostname(config::kPortalHostname);
   s_wm.setAPCallback(onConfigPortalApStarted);
   attachPortalParams(s_wm);
+
+  const char custom_css[] =
+      "<style>\n"
+      "body { font-family: 'Inter', system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; }\n"
+      "button { background: #cba6f7; color: #11111b; border: none; border-radius: 6px; padding: 12px; font-weight: bold; cursor: pointer; transition: background 0.2s; }\n"
+      "button:hover { background: #f5c2e7; }\n"
+      "input, select { background: #313244 !important; color: #cdd6f4 !important; border: 1px solid #45475a !important; border-radius: 6px; padding: 12px; }\n"
+      "input:focus, select:focus { outline: none; border-color: #f5c2e7 !important; }\n"
+      ".wrap { background: #181825; border-radius: 12px; padding: 30px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); border: 1px solid #313244; }\n"
+      "h1, h2, h3 { color: #f5c2e7; }\n"
+      "a { color: #cba6f7; }\n"
+      "a:hover { color: #f5c2e7; }\n"
+      ".msg { color: #a6adc8; }\n"
+      ".q { color: #a6adc8; }\n"
+      "</style>\n";
+  s_wm.setCustomHeadElement(custom_css);
+
   s_wm_configured = true;
 }
 
