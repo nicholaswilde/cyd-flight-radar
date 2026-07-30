@@ -20,17 +20,17 @@
 namespace ui {
 namespace radar {
 
-uint16_t kColorBackground = 0x0000;
-uint16_t kColorGrid = 0x0320;
-uint16_t kColorLabel = 0xFFFF;
-uint16_t kColorCenter = 0xFFFF;
-uint16_t kColorAircraft = 0x001F;
-uint16_t kColorHelicopter = 0xFFFF;
-uint16_t kColorTrackVector = 0xFFFF;
-uint16_t kColorTagType = 0x5DFF;
-uint16_t kColorTagAltitude = 0xFFE0;
-uint16_t kColorRunway = 0x4D5F;
-uint16_t kColorRunwayLabel = 0x7DFF;
+uint16_t kColorBackground = lgfx::color565(kBgR, kBgG, kBgB);
+uint16_t kColorGrid = lgfx::color565(kGridR, kGridG, kGridB);
+uint16_t kColorLabel = lgfx::color565(205, 214, 244);
+uint16_t kColorCenter = lgfx::color565(205, 214, 244);
+uint16_t kColorAircraft = lgfx::color565(kAircraftR, kAircraftG, kAircraftB);
+uint16_t kColorHelicopter = lgfx::color565(kHeliR, kHeliG, kHeliB);
+uint16_t kColorTrackVector = lgfx::color565(kTrackR, kTrackG, kTrackB);
+uint16_t kColorTagType = lgfx::color565(kTagTypeR, kTagTypeG, kTagTypeB);
+uint16_t kColorTagAltitude = lgfx::color565(kTagAltR, kTagAltG, kTagAltB);
+uint16_t kColorRunway = lgfx::color565(kRunwayR, kRunwayG, kRunwayB);
+uint16_t kColorRunwayLabel = lgfx::color565(kRunwayLabelR, kRunwayLabelG, kRunwayLabelB);
 
 }  // namespace radar
 

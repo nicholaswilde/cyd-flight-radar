@@ -61,10 +61,10 @@ constexpr float kAdsbFetchRadiusScale = 1.0f;
 /** false = hide aircraft with alt_baro "ground"; true = show them too. */
 constexpr bool kAdsbShowGroundAircraft = false;
 
-// --- UI colors (RGB565) — status screens ---
-constexpr uint16_t kColorBlack = 0x0000;
-constexpr uint16_t kColorYellow = 0xFFE0;
-constexpr uint16_t kTextOnYellow = kColorBlack;
-constexpr uint16_t kTextOnBlack = 0xFFFF;
+// --- UI colors (RGB565) — status screens (Catppuccin Mocha) ---
+constexpr uint16_t kColorBlack = 0x18E5;  // Base (#1e1e2e)
+constexpr uint16_t kColorYellow = 0xFF15; // Yellow (#f9e2af)
+constexpr uint16_t kTextOnYellow = 0x18E5; // Base (#1e1e2e)
+constexpr uint16_t kTextOnBlack = 0xCEBE; // Text (#cdd6f4)
 
 }  // namespace config

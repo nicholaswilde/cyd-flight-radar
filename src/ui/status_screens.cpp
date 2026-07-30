@@ -171,7 +171,11 @@ void drawSpinnerDots() {
     const int y = kCenterY + static_cast<int>(std::lround(std::sin(a) * kSpinnerRadius));
 
     const int fade = 255 - i * 22;
-    const uint16_t color = tft.color565(0, fade, 0);
+    // Catppuccin Green: 166, 227, 161
+    const uint8_t r = (166 * fade) / 255;
+    const uint8_t g = (227 * fade) / 255;
+    const uint8_t b = (161 * fade) / 255;
+    const uint16_t color = tft.color565(r, g, b);
     tft.fillSmoothCircle(x, y, kSpinnerDotRadius, color);
 
     s_spinner_dots[i].x = x;
