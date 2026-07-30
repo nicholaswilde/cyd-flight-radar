@@ -64,6 +64,9 @@ constexpr bool kAdsbShowGroundAircraft = false;
 // --- UI colors (RGB565) — status screens (Catppuccin Mocha) ---
 constexpr uint16_t kColorBlack = 0x18E5;  // Base (#1e1e2e)
 constexpr uint16_t kColorYellow = 0xFF15; // Yellow (#f9e2af)
+constexpr uint16_t kColorMauve = 0xCD3E;  // Mauve (#cba6f7)
+constexpr uint16_t kColorGreen = 0xA714;  // Green (#a6e3a1)
+constexpr uint16_t kColorBlue = 0x8DBF;   // Blue (#89b4fa)
 constexpr uint16_t kTextOnYellow = 0x18E5; // Base (#1e1e2e)
 constexpr uint16_t kTextOnBlack = 0xCEBE; // Text (#cdd6f4)
 
