@@ -63,12 +63,14 @@ constexpr int kBeyondRingScreenMarginPx = 2;
 constexpr int kAircraftTagLabelHeightPx = 13;
 
 /** RGB565 palette targets (Catppuccin Mocha). */
-constexpr uint8_t kBgR = 30;
-constexpr uint8_t kBgG = 30;
-constexpr uint8_t kBgB = 46;
-constexpr uint8_t kGridR = 88;
-constexpr uint8_t kGridG = 91;
-constexpr uint8_t kGridB = 112;
+// Background: Mantle
+constexpr uint8_t kBgR = 24;
+constexpr uint8_t kBgG = 24;
+constexpr uint8_t kBgB = 37;
+// Grid Rings: Surface0
+constexpr uint8_t kGridR = 49;
+constexpr uint8_t kGridG = 50;
+constexpr uint8_t kGridB = 68;
 constexpr uint8_t kAircraftR = 243;
 constexpr uint8_t kAircraftG = 139;
 constexpr uint8_t kAircraftB = 168;
