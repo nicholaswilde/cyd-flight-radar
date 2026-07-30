@@ -1,4 +1,4 @@
-# :airplane: CYD Fight Radar :bullseye:
+# :airplane: CYD Fight Radar :dart:
 [![task](https://img.shields.io/badge/Task-Enabled-brightgreen?style=for-the-badge&logo=task&logoColor=white)](https://taskfile.dev/#/)
 
 A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb.fi API.
