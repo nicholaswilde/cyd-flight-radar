@@ -9,7 +9,9 @@
 #include "hardware/display.h"
 #include "services/adsb_client.h"
 #include "services/radar_location.h"
-#include "services/wifi_setup.h"
+#include "services/wifi_manager.h"
+#include "services/button_manager.h"
+#include "secrets.h"
 #include "ui/radar_display.h"
 #include "ui/radar_range.h"
 #include "ui/status_screens.h"
@@ -17,9 +19,11 @@
 namespace {
 
 bool g_radar_visible = false;
-unsigned long g_wifi_down_since = 0;
-unsigned long g_last_reconnect_ms = 0;
 unsigned long g_last_adsb_fetch_ms = 0;
+
+WifiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
+ButtonManager bootButton(0);
+WifiState g_last_wifi_state = WIFI_STATE_DISCONNECTED;
 
 void showRadarIfConnected() {
   if (WiFi.status() != WL_CONNECTED) {
@@ -37,15 +41,18 @@ void onRangeTap() {
   Serial.printf("Range: %s (outer ~%.0f km)\n", range_label,
                 ui::radar::rangeCurrent().outer_km);
 
-  if (g_radar_visible && WiFi.status() == WL_CONNECTED) {
+  if (g_radar_visible && wifiManager.getState() == WIFI_STATE_CONNECTED) {
     ui::radarDisplayDraw();
   }
 }
 
 void handleInput() {
-  bootButtonPollLongPress();
-  if (bootButtonConsumeTap()) {
+  ButtonAction action = bootButton.update(millis());
+  if (action == ButtonAction::SINGLE_PRESS) {
     onRangeTap();
+  } else if (action == ButtonAction::LONG_PRESS) {
+    // Reset credentials? Or something else? Just ignore for now.
+    Serial.println("Boot button long press");
   }
 
   static bool s_was_touched = false;
@@ -104,45 +111,45 @@ void setup() {
   Serial.println();
   Serial.println("Plane Radar");
 
-  bootButtonInit();
+  bootButton.begin();
   displayInit();
-  if (wifiShowsSetupScreenOnBoot()) {
-    statusScreenPortal();
-  }
+  
   services::location::init();
   ui::radar::rangeInit();
-  services::adsb::setPollFn(wifiLoop);
 
-  if (wifiSetupConnect()) {
-    showRadarIfConnected();
+  wifiManager.begin();
+  if (wifiManager.getState() == WIFI_STATE_CONNECTING || wifiManager.getState() == WIFI_STATE_DISCONNECTED) {
+    statusScreenConnectingBegin(WIFI_SSID);
   }
 }
 
 void loop() {
   handleInput();
-  wifiLoop();
+  wifiManager.update();
 
-  if (WiFi.status() != WL_CONNECTED) {
-    if (g_radar_visible) {
-      Serial.println("WiFi lost — will reconnect");
-      g_radar_visible = false;
-    }
-
-    if (g_wifi_down_since == 0) {
-      g_wifi_down_since = millis();
-    }
-
-    const unsigned long down_ms = millis() - g_wifi_down_since;
-    if (down_ms >= config::kWifiDownGraceMs &&
-        millis() - g_last_reconnect_ms >= config::kWifiReconnectIntervalMs) {
-      g_last_reconnect_ms = millis();
-      if (wifiReconnect()) {
-        g_wifi_down_since = 0;
-        showRadarIfConnected();
+  WifiState current_state = wifiManager.getState();
+  
+  if (current_state != g_last_wifi_state) {
+    if (current_state == WIFI_STATE_CONNECTED) {
+      showRadarIfConnected();
+    } else if (current_state == WIFI_STATE_AP_MODE) {
+      // In AP Mode
+      if (g_radar_visible) {
+        g_radar_visible = false;
       }
+      statusScreenPortal();
+    } else if (current_state == WIFI_STATE_CONNECTING || current_state == WIFI_STATE_DISCONNECTED) {
+      if (g_radar_visible) {
+        g_radar_visible = false;
+      }
+      statusScreenConnectingBegin(WIFI_SSID);
     }
-  } else {
-    g_wifi_down_since = 0;
+    g_last_wifi_state = current_state;
+  }
+
+  if (current_state == WIFI_STATE_CONNECTING) {
+    statusScreenConnectingTick();
+  } else if (current_state == WIFI_STATE_CONNECTED) {
     if (!g_radar_visible) {
       showRadarIfConnected();
     } else if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
