@@ -13,6 +13,13 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
 * **Easy Setup**: Built-in Wi-Fi captive portal for configuring network credentials, radar coordinates, and display options—all matching the Catppuccin Mocha visual aesthetic.
 
+## ⚙️ Configuration
+
+There are two ways to configure the Wi-Fi credentials for the radar:
+
+1. **Captive Portal**: On first boot, the device will host a Wi-Fi setup portal. Connect to the setup network to enter your network credentials and radar coordinates.
+2. **Hardcoded Credentials**: If you prefer to bake the credentials into the firmware, copy `include/secrets.h.example` to `include/secrets.h` and update it with your `WIFI_SSID` and `WIFI_PASSWORD`.
+
 ## :hammer_and_wrench: Hardware Supported
 Currently configured and tested on:
 * `cyd_28r`: Standard 2.8" ESP32 CYD with resistive touch (XPT2046).
