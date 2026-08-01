@@ -17,10 +17,13 @@
 - **Build & Test Outputs**: Use `rtk err` or `rtk test` when running build/test commands to filter output to errors/failures only (e.g. `rtk test pio test -e native`).
 
 ## What To Do Next
-- When asked "what to do next" (or similar), **always check the remote repository issues first** using `gh`:
+- When asked "what to do next" or for "feature suggestions" (or similar), **always check the remote repository issues first** for BOTH this repo AND the upstream repo:
   ```bash
   rtk gh issue list | cat
+  rtk gh issue list --repo MatixYo/ESP32-Plane-Radar | cat
   ```
+- **CRITICAL**: DO NOT update or make comments on the `MatixYo/ESP32-Plane-Radar` repository. Only reference them for reading.
+- For issues that are part of this repository (`cyd-flight-radar`), you may comment, update, and interact with them normally.
 
 ## Issue Creation
 - When asked to create an issue, use your best guess to determine if it is a new feature or a bug fix.
