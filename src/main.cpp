@@ -43,6 +43,7 @@ void onRangeTap() {
 
   if (g_radar_visible && wifiManager.getState() == WIFI_STATE_CONNECTED) {
     ui::radarDisplayDraw();
+    g_last_adsb_fetch_ms = 0; // Force immediate ADSB fetch on next loop
   }
 }
 
