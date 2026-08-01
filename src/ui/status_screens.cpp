@@ -99,6 +99,17 @@ void drawTextBlock(uint16_t bg, const TextLine* lines, size_t count) {
   }
 }
 
+void drawStatusAppVersion() {
+  tft.setTextDatum(textdatum_t::bottom_right);
+  tft.setTextColor(lgfx::color565(120, 120, 120), config::kColorBlack);
+  if (displayFontIsSmooth()) {
+    displayFontSetSmoothSize(tft, 0.60f);
+  } else {
+    displayFontSetBitmap(tft, &kConnectingGfxDetail);
+  }
+  tft.drawString(config::kAppVersion, config::kDisplayWidth - 2, config::kDisplayHeight - 2);
+}
+
 constexpr float kConnectingDetailVlw = 0.92f;
 
 void applyConnectingDetailStyle() {
@@ -147,6 +158,8 @@ void drawConnectingText() {
   tft.drawString("Connecting to", kCenterX, y + detail_h / 2);
   y += detail_h + kLineGap;
   tft.drawString(s_ssid_line, kCenterX, y + detail_h / 2);
+
+  drawStatusAppVersion();
 
   s_connecting_text_drawn = true;
 }
@@ -224,6 +237,7 @@ void statusScreenPortal() {
   };
   drawTextBlock(config::kColorBlack, lines,
                 sizeof(lines) / sizeof(lines[0]));
+  drawStatusAppVersion();
 }
 
 void statusScreenConnectFailed() {
@@ -236,6 +250,7 @@ void statusScreenConnectFailed() {
   };
   drawTextBlock(config::kColorBlack, lines,
                 sizeof(lines) / sizeof(lines[0]));
+  drawStatusAppVersion();
 }
 
 void statusScreenWifiReset() {
@@ -245,4 +260,5 @@ void statusScreenWifiReset() {
   };
   drawTextBlock(config::kColorBlack, lines,
                 sizeof(lines) / sizeof(lines[0]));
+  drawStatusAppVersion();
 }
