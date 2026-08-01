@@ -793,6 +793,7 @@ void drawClock() {
 
 void drawDetailsPanel() {
   tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, radar::kColorBackground);
+  tft.drawFastHLine(0, radar::kSize, 240, radar::kColorGrid);
   drawAppVersion();
   drawClock();
 
@@ -811,8 +812,6 @@ void drawDetailsPanel() {
   }
   
   if (!ac) return; // Selected aircraft disappeared
-  
-  tft.drawFastHLine(0, radar::kSize, 240, radar::kColorGrid);
   
   tft.setTextDatum(textdatum_t::top_left);
   displayFontEnsureLoaded(tft);
