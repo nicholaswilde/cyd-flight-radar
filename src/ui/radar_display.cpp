@@ -906,8 +906,13 @@ void radarDisplayDraw() {
   initPalette();
   initLabelMetrics();
 
+  // Clear the full screen once to erase any previous status screens
+  tft.fillRect(0, 0, config::kDisplayWidth, config::kDisplayHeight,
+               radar::kColorBackground);
+
   if (ensureFrameSprite()) {
     renderFrame();
+    drawDetailsPanel();
     return;
   }
 
