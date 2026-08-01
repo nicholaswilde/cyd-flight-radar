@@ -730,9 +730,9 @@ void drawAppVersion() {
   tft.setTextColor(lgfx::color565(120, 120, 120), radar::kColorBackground);
   displayFontEnsureLoaded(tft);
   if (displayFontIsSmooth()) {
-    displayFontSetSmoothSize(tft, 0.45f);
+    displayFontSetSmoothSize(tft, 0.60f);
   } else {
-    displayFontSetBitmap(tft, &fonts::FreeSansBold9pt7b);
+    displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
   }
   tft.drawString(config::kAppVersion, 238, 318);
 }
