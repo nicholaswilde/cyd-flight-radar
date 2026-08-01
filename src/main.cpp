@@ -20,6 +20,7 @@
 namespace {
 
 bool g_radar_visible = false;
+bool g_screen_on = true;
 unsigned long g_last_adsb_fetch_ms = 0;
 
 WifiManager wifiManager(WIFI_SSID, WIFI_PASSWORD);
@@ -51,10 +52,21 @@ void onRangeTap() {
 void handleInput() {
   ButtonAction action = bootButton.update(millis());
   if (action == ButtonAction::SINGLE_PRESS) {
-    onRangeTap();
+    if (!g_screen_on) {
+      g_screen_on = true;
+      tft.setBrightness(255);
+    } else {
+      onRangeTap();
+    }
   } else if (action == ButtonAction::LONG_PRESS) {
-    // Reset credentials? Or something else? Just ignore for now.
-    Serial.println("Boot button long press");
+    if (g_screen_on) {
+      g_screen_on = false;
+      tft.setBrightness(0);
+    }
+  }
+
+  if (!g_screen_on) {
+    return; // Ignore touch input while screen is off
   }
 
   static bool s_was_touched = false;
@@ -168,7 +180,7 @@ void loop() {
       showRadarIfConnected();
     } else {
       static unsigned long s_last_sweep_ms = 0;
-      if (config::kRadarSweepEnabled && millis() - s_last_sweep_ms >= 50) { // 20 FPS
+      if (g_screen_on && config::kRadarSweepEnabled && millis() - s_last_sweep_ms >= 50) { // 20 FPS
         s_last_sweep_ms = millis();
         ui::radarDisplayUpdateAnimation();
       }
