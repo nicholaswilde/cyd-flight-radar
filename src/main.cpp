@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <time.h>
 
 #include "config.h"
 #include "hardware/display.h"
@@ -143,6 +144,7 @@ void loop() {
   
   if (current_state != g_last_wifi_state) {
     if (current_state == WIFI_STATE_CONNECTED) {
+      configTzTime(config::kTimezoneDefault, config::kNtpServer);
       showRadarIfConnected();
     } else if (current_state == WIFI_STATE_AP_MODE) {
       // In AP Mode

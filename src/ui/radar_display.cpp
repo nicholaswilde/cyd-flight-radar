@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <time.h>
 
 #include "config.h"
 #include "hardware/display.h"
@@ -769,9 +770,30 @@ void drawAppVersion() {
   tft.drawString(config::kAppVersion, 238, 318);
 }
 
+void drawClock() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 10)) {
+    return; // Time not set yet
+  }
+  
+  char time_str[16];
+  strftime(time_str, sizeof(time_str), "%H:%M", &timeinfo);
+  
+  tft.setTextDatum(textdatum_t::bottom_left);
+  tft.setTextColor(lgfx::color565(120, 120, 120), radar::kColorBackground);
+  displayFontEnsureLoaded(tft);
+  if (displayFontIsSmooth()) {
+    displayFontSetSmoothSize(tft, 0.60f);
+  } else {
+    displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
+  }
+  tft.drawString(time_str, 2, 318);
+}
+
 void drawDetailsPanel() {
   tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, radar::kColorBackground);
   drawAppVersion();
+  drawClock();
 
   if (s_selected_hex[0] == '\0') {
     return;

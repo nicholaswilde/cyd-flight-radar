@@ -72,6 +72,11 @@ constexpr uint16_t kTextOnBlack = 0xCEBE; // Text (#cdd6f4)
 
 constexpr char kAppVersion[] = "v0.1.0";
 
+// --- NTP and Timezone Settings ---
+// Find your region's POSIX string here: https://gist.github.com/alwynallan/24d96091655391107939
+constexpr char kNtpServer[] = "pool.ntp.org";
+constexpr char kTimezoneDefault[] = "UTC0"; // Default: UTC
+
 // --- Radar Sweep Animation ---
 constexpr bool kRadarSweepEnabled = true;
 constexpr float kRadarSweepDurationMs = 6000.0f; // Time (ms) for one full rotation
