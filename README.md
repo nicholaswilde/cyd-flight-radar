@@ -8,10 +8,16 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
 
 ## :star: Features
 * **Real-time ADS-B Data**: Fetches live flight data using the open [adsb.fi](https://adsb.fi/) API.
-* **Touchscreen Support**: Tap on any aircraft on the screen to view detailed information including its registration, model, altitude, speed, and distance from your location. Tapping an empty space or pressing the physical **BOOT button** on the CYD zooms the radar range.
+* **Animated Radar Sweep**: Features a smooth 20 FPS rotating radar sweep (configurable in `config.h`).
+* **Local Time Clock**: Displays the current local time via background NTP synchronization using POSIX timezone formats.
+* **Interactive Display**: Tap on any aircraft to view detailed information including its registration, model, altitude, speed, and distance from your location. Tapping an empty space cycles through radar ranges.
+* **Hardware Controls**: Use the physical **BOOT button** on the CYD:
+  * **Short Press (Screen On)**: Cycle through radar distances.
+  * **Long Press (Screen On)**: Turn the screen off and pause rendering to save power.
+  * **Short Press (Screen Off)**: Wake the display back up.
 * **Aesthetics**: Fully themed using the gorgeous [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) color palette.
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
-* **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `cyd-flight-radar-XXXX`) for configuring network credentials, radar coordinates, and display options—all matching the Catppuccin Mocha visual aesthetic.
+* **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `PlaneRadar-Setup-XXXX`) for configuring network credentials and radar coordinates.
 
 ## ⚙️ Configuration
 
