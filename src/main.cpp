@@ -98,7 +98,7 @@ void triggerFetch() {
     xTaskCreatePinnedToCore(
         adsbFetchTask,      // Function to implement the task
         "ADSB_Fetch",       // Name of the task
-        8192,               // Stack size in words
+        16384,              // Stack size in words (bytes on ESP32)
         NULL,               // Task input parameter
         1,                  // Priority of the task
         &g_fetch_task,      // Task handle
