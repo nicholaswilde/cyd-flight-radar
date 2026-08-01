@@ -772,12 +772,13 @@ void drawAppVersion() {
 
 void drawClock() {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo, 10)) {
-    return; // Time not set yet
-  }
-  
   char time_str[16];
-  strftime(time_str, sizeof(time_str), "%H:%M", &timeinfo);
+  
+  if (!getLocalTime(&timeinfo, 0)) {
+    strcpy(time_str, "--:--");
+  } else {
+    strftime(time_str, sizeof(time_str), "%H:%M", &timeinfo);
+  }
   
   tft.setTextDatum(textdatum_t::bottom_left);
   tft.setTextColor(lgfx::color565(120, 120, 120), radar::kColorBackground);
@@ -928,6 +929,21 @@ void radarDisplayUpdateAnimation() {
   initPalette();
   if (ensureFrameSprite()) {
     renderFrame();
+  }
+  
+  // Update clock independently of ADS-B fetches
+  static int s_last_minute = -1;
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo, 0)) {
+    if (timeinfo.tm_min != s_last_minute) {
+      s_last_minute = timeinfo.tm_min;
+      drawClock();
+    }
+  } else {
+    if (s_last_minute != -2) {
+      s_last_minute = -2;
+      drawClock();
+    }
   }
 }
 
