@@ -1,5 +1,6 @@
 #include "services/wifi_manager.h"
 #include <Arduino.h>
+#include <Preferences.h>
 
 #include "config.h"
 
@@ -78,11 +79,27 @@ void WifiManager::begin() {
     _improv->onImprovConnected([](const char *ssid, const char *password) {
         Serial.printf("\n[WiFi] Improv provisioned successfully!\n");
         
-        
+        Preferences preferences;
+        preferences.begin("wifi", false);
+        preferences.putString("ssid", ssid);
+        preferences.putString("pass", password);
+        preferences.end();
         // No need to restart; WifiManager::update() handles the state transition to WIFI_STATE_CONNECTED
     });
 #endif
     WiFi.mode(WIFI_STA);
+    
+    Preferences preferences;
+    preferences.begin("wifi", true);
+    String saved_ssid = preferences.getString("ssid", "");
+    String saved_pass = preferences.getString("pass", "");
+    preferences.end();
+    
+    if (saved_ssid.length() > 0) {
+        _ssid = saved_ssid;
+        _password = saved_pass;
+    }
+
     
     if (_ssid.length() == 0) {
         Serial.println("[WiFi] No credentials configured. Launching AP mode directly...");
@@ -220,7 +237,7 @@ String WifiManager::getAPSSID() {
     for (size_t i = 0; i < suffix.length(); i++) {
         suffix[i] = toupper(suffix[i]);
     }
-    return "cyd-fligh-radar-" + cleanMac;
+    return "cyd-flight-radar-" + suffix;
 }
 
 void WifiManager::startAPMode() {
@@ -369,6 +386,12 @@ void WifiManager::handleSave() {
     String tz = _webServer->arg("tz");
 
     Serial.printf("[WiFi] Saved new credentials via captive portal: %s\n", ssid.c_str());
+
+    Preferences preferences;
+    preferences.begin("wifi", false);
+    preferences.putString("ssid", ssid);
+    preferences.putString("pass", pass);
+    preferences.end();
 
     String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
     html += "<title>Credentials Saved</title>";
