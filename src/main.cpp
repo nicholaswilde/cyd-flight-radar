@@ -153,9 +153,16 @@ void loop() {
   } else if (current_state == WIFI_STATE_CONNECTED) {
     if (!g_radar_visible) {
       showRadarIfConnected();
-    } else if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
-      g_last_adsb_fetch_ms = millis();
-      fetchAndDrawAircraft();
+    } else {
+      static unsigned long s_last_sweep_ms = 0;
+      if (millis() - s_last_sweep_ms >= 50) { // 20 FPS
+        s_last_sweep_ms = millis();
+        ui::radarDisplayRefreshAircraft();
+      }
+      if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
+        g_last_adsb_fetch_ms = millis();
+        fetchAndDrawAircraft();
+      }
     }
   }
 

@@ -712,11 +712,39 @@ bool ensureFrameSprite() {
   return true;
 }
 
+void drawRadarSweep(lgfx::LovyanGFX& gfx) {
+  const int cx = radar::kCenterX;
+  const int cy = radar::kCenterY;
+  const int r = radar::kGridOuterRadius;
+
+  // 1 full rotation per 3 seconds
+  const float speed = 360.0f / 3000.0f;
+  const float current_angle_deg = (millis() % 3000) * speed;
+  const float current_angle_rad = current_angle_deg * M_PI / 180.0f;
+  
+  // Draw fading trail
+  for (int i = 20; i >= 0; --i) {
+    const float trail_angle_deg = current_angle_deg - i * 1.5f;
+    const float trail_angle_rad = trail_angle_deg * M_PI / 180.0f;
+    const int tx = cx + static_cast<int>(lroundf(sinf(trail_angle_rad) * r));
+    const int ty = cy - static_cast<int>(lroundf(cosf(trail_angle_rad) * r));
+    
+    // Blend from background to green
+    const float t = 1.0f - (static_cast<float>(i) / 20.0f);
+    const uint8_t red = static_cast<uint8_t>(radar::kBgR + (166 - radar::kBgR) * t);
+    const uint8_t green = static_cast<uint8_t>(radar::kBgG + (227 - radar::kBgG) * t);
+    const uint8_t blue = static_cast<uint8_t>(radar::kBgB + (161 - radar::kBgB) * t);
+    
+    gfx.drawLine(cx, cy, tx, ty, lgfx::color565(red, green, blue));
+  }
+}
+
 // Double-buffered frame: composite the grid AND aircraft into the off-screen
 // sprite, then blit it to the panel in a single pushSprite. Because the panel
 // is updated in one pass, labels never show an erase/redraw gap — no flicker.
 void renderFrame() {
   drawStaticGrid(s_frame);  // opens its own DrawScope(s_frame)
+  drawRadarSweep(s_frame);
   {
     const DrawScope scope(s_frame);
     drawAircraft();
