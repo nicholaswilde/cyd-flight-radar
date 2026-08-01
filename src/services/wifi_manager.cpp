@@ -3,6 +3,7 @@
 #include <Preferences.h>
 
 #include "config.h"
+#include "services/radar_location.h"
 
 #ifndef NATIVE_TEST
 
@@ -364,8 +365,13 @@ void WifiManager::handleRoot() {
     
     html += "<input type='password' id='pass' name='pass' placeholder='Password'>";
     
+    html += "<label for='lat'>Latitude</label>";
+    html += "<input type='text' id='lat' name='lat' placeholder='e.g. 34.1031' value='" + String(services::location::lat(), 4) + "'>";
     
-    html += "<p style='color: #a6adc8; font-size: 12px; margin-top: -10px; margin-bottom: 20px; text-align: center;'><em>Leave location fields blank to auto-detect your location via IP address.</em></p>";
+    html += "<label for='lon'>Longitude</label>";
+    html += "<input type='text' id='lon' name='lon' placeholder='e.g. -118.416' value='" + String(services::location::lon(), 4) + "'>";
+    
+    html += "<p style='color: #a6adc8; font-size: 12px; margin-top: -10px; margin-bottom: 20px; text-align: center;'><em>Leave location fields blank to use default.</em></p>";
     
     html += "<button type='submit'>Save & Connect</button>";
     html += "</form>";
@@ -392,6 +398,10 @@ void WifiManager::handleSave() {
     preferences.putString("ssid", ssid);
     preferences.putString("pass", pass);
     preferences.end();
+    
+    if (lat.length() > 0 && lon.length() > 0) {
+        services::location::saveFromStrings(lat.c_str(), lon.c_str());
+    }
 
     String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
     html += "<title>Credentials Saved</title>";
