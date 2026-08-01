@@ -893,6 +893,13 @@ void radarDisplayDraw() {
   drawDetailsPanel();
 }
 
+void radarDisplayUpdateAnimation() {
+  initPalette();
+  if (ensureFrameSprite()) {
+    renderFrame();
+  }
+}
+
 void radarDisplayRefreshAircraft() {
   initPalette();
 

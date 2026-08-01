@@ -6,6 +6,7 @@ namespace ui {
 void radarDisplayDraw();
 
 /** Redraw aircraft only (blits cached grid; no full-screen clear). */
+void radarDisplayUpdateAnimation();
 void radarDisplayRefreshAircraft();
 
 bool radarDisplayHandleTouch(int x, int y);

@@ -168,7 +168,7 @@ void loop() {
       static unsigned long s_last_sweep_ms = 0;
       if (millis() - s_last_sweep_ms >= 50) { // 20 FPS
         s_last_sweep_ms = millis();
-        ui::radarDisplayRefreshAircraft();
+        ui::radarDisplayUpdateAnimation();
       }
       
       if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
