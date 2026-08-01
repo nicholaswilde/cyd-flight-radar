@@ -1,4 +1,4 @@
-# :airplane: CYD Fight Radar :dart:
+# :airplane: CYD Flight Radar :dart:
 [![task](https://img.shields.io/badge/Task-Enabled-brightgreen?style=for-the-badge&logo=task&logoColor=white)](https://taskfile.dev/#/)
 
 A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb.fi API.
@@ -8,10 +8,10 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
 
 ## :star: Features
 * **Real-time ADS-B Data**: Fetches live flight data using the open [adsb.fi](https://adsb.fi/) API.
-* **Touchscreen Support**: Tap on any aircraft on the screen to view detailed information including its registration, model, altitude, speed, and distance from your location. Tapping an empty space zooms the radar range.
+* **Touchscreen Support**: Tap on any aircraft on the screen to view detailed information including its registration, model, altitude, speed, and distance from your location. Tapping an empty space or pressing the physical **BOOT button** on the CYD zooms the radar range.
 * **Aesthetics**: Fully themed using the gorgeous [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) color palette.
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
-* **Easy Setup**: Built-in Wi-Fi captive portal for configuring network credentials, radar coordinates, and display options—all matching the Catppuccin Mocha visual aesthetic.
+* **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `cyd-flight-radar-XXXX`) for configuring network credentials, radar coordinates, and display options—all matching the Catppuccin Mocha visual aesthetic.
 
 ## ⚙️ Configuration
 
