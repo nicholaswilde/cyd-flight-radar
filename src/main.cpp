@@ -84,6 +84,17 @@ void handleInput() {
   }
 }
 
+void adsbPollLoop() {
+  handleInput();
+  if (g_radar_visible) {
+    static unsigned long s_last_sweep_ms = 0;
+    if (millis() - s_last_sweep_ms >= 50) { // 20 FPS
+      s_last_sweep_ms = millis();
+      ui::radarDisplayRefreshAircraft();
+    }
+  }
+}
+
 void fetchAndDrawAircraft() {
   const float fetch_km = ui::radar::fetchRadiusKm();
   if (!services::adsb::fetchUpdate(services::location::lat(),
@@ -117,6 +128,7 @@ void setup() {
   
   services::location::init();
   ui::radar::rangeInit();
+  services::adsb::setPollFn(adsbPollLoop);
 
   wifiManager.begin();
   if (wifiManager.getState() == WIFI_STATE_CONNECTING || wifiManager.getState() == WIFI_STATE_DISCONNECTED) {
@@ -125,7 +137,7 @@ void setup() {
 }
 
 void loop() {
-  handleInput();
+  adsbPollLoop();
   wifiManager.update();
 
   WifiState current_state = wifiManager.getState();
@@ -154,11 +166,6 @@ void loop() {
     if (!g_radar_visible) {
       showRadarIfConnected();
     } else {
-      static unsigned long s_last_sweep_ms = 0;
-      if (millis() - s_last_sweep_ms >= 50) { // 20 FPS
-        s_last_sweep_ms = millis();
-        ui::radarDisplayRefreshAircraft();
-      }
       if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
         g_last_adsb_fetch_ms = millis();
         fetchAndDrawAircraft();
