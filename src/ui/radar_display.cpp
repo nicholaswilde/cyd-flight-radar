@@ -713,13 +713,17 @@ bool ensureFrameSprite() {
 }
 
 void drawRadarSweep(lgfx::LovyanGFX& gfx) {
+  if (!config::kRadarSweepEnabled) {
+    return;
+  }
+
   const int cx = radar::kCenterX;
   const int cy = radar::kCenterY;
   const int r = radar::kGridOuterRadius;
 
-  // 1 full rotation per 6 seconds
-  const float speed = 360.0f / 6000.0f;
-  const float current_angle_deg = (millis() % 6000) * speed;
+  const float speed = 360.0f / config::kRadarSweepDurationMs;
+  const uint32_t t_ms = static_cast<uint32_t>(config::kRadarSweepDurationMs);
+  const float current_angle_deg = (millis() % t_ms) * speed;
   const float current_angle_rad = current_angle_deg * M_PI / 180.0f;
   
   // Draw fading trail

@@ -166,7 +166,7 @@ void loop() {
       showRadarIfConnected();
     } else {
       static unsigned long s_last_sweep_ms = 0;
-      if (millis() - s_last_sweep_ms >= 50) { // 20 FPS
+      if (config::kRadarSweepEnabled && millis() - s_last_sweep_ms >= 50) { // 20 FPS
         s_last_sweep_ms = millis();
         ui::radarDisplayUpdateAnimation();
       }

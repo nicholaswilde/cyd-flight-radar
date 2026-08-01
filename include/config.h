@@ -72,4 +72,8 @@ constexpr uint16_t kTextOnBlack = 0xCEBE; // Text (#cdd6f4)
 
 constexpr char kAppVersion[] = "v0.1.0";
 
+// --- Radar Sweep Animation ---
+constexpr bool kRadarSweepEnabled = true;
+constexpr float kRadarSweepDurationMs = 6000.0f; // Time (ms) for one full rotation
+
 }  // namespace config
