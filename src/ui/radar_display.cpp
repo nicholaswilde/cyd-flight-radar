@@ -717,9 +717,9 @@ void drawRadarSweep(lgfx::LovyanGFX& gfx) {
   const int cy = radar::kCenterY;
   const int r = radar::kGridOuterRadius;
 
-  // 1 full rotation per 3 seconds
-  const float speed = 360.0f / 3000.0f;
-  const float current_angle_deg = (millis() % 3000) * speed;
+  // 1 full rotation per 6 seconds
+  const float speed = 360.0f / 6000.0f;
+  const float current_angle_deg = (millis() % 6000) * speed;
   const float current_angle_rad = current_angle_deg * M_PI / 180.0f;
   
   // Draw fading trail

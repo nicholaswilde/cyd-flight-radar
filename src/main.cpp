@@ -78,32 +78,32 @@ void handleInput() {
       if (ui::radarDisplayHandleTouch(s_tap_x, s_tap_y)) {
         ui::radarDisplayRefreshAircraft();
       } else {
-        onRangeTap();
       }
     }
   }
 }
 
-void adsbPollLoop() {
-  handleInput();
-  if (g_radar_visible) {
-    static unsigned long s_last_sweep_ms = 0;
-    if (millis() - s_last_sweep_ms >= 50) { // 20 FPS
-      s_last_sweep_ms = millis();
-      ui::radarDisplayRefreshAircraft();
-    }
-  }
+TaskHandle_t g_fetch_task = nullptr;
+
+void adsbFetchTask(void* pvParameters) {
+  const float fetch_km = ui::radar::fetchRadiusKm();
+  services::adsb::fetchUpdate(services::location::lat(),
+                              services::location::lon(), fetch_km);
+  g_fetch_task = nullptr;
+  vTaskDelete(NULL);
 }
 
-void fetchAndDrawAircraft() {
-  const float fetch_km = ui::radar::fetchRadiusKm();
-  if (!services::adsb::fetchUpdate(services::location::lat(),
-                                   services::location::lon(), fetch_km)) {
-    handleInput();
-    return;
+void triggerFetch() {
+  if (g_fetch_task == nullptr) {
+    xTaskCreatePinnedToCore(
+        adsbFetchTask,      // Function to implement the task
+        "ADSB_Fetch",       // Name of the task
+        8192,               // Stack size in words
+        NULL,               // Task input parameter
+        1,                  // Priority of the task
+        &g_fetch_task,      // Task handle
+        0);                 // Core where the task should run (0 = network, 1 = UI)
   }
-  ui::radarDisplayRefreshAircraft();
-  handleInput();
 }
 
 }  // namespace
@@ -128,7 +128,6 @@ void setup() {
   
   services::location::init();
   ui::radar::rangeInit();
-  services::adsb::setPollFn(adsbPollLoop);
 
   wifiManager.begin();
   if (wifiManager.getState() == WIFI_STATE_CONNECTING || wifiManager.getState() == WIFI_STATE_DISCONNECTED) {
@@ -137,7 +136,7 @@ void setup() {
 }
 
 void loop() {
-  adsbPollLoop();
+  handleInput();
   wifiManager.update();
 
   WifiState current_state = wifiManager.getState();
@@ -166,9 +165,15 @@ void loop() {
     if (!g_radar_visible) {
       showRadarIfConnected();
     } else {
+      static unsigned long s_last_sweep_ms = 0;
+      if (millis() - s_last_sweep_ms >= 50) { // 20 FPS
+        s_last_sweep_ms = millis();
+        ui::radarDisplayRefreshAircraft();
+      }
+      
       if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
         g_last_adsb_fetch_ms = millis();
-        fetchAndDrawAircraft();
+        triggerFetch();
       }
     }
   }

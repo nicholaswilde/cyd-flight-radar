@@ -20,19 +20,12 @@ constexpr unsigned long kRequestTimeoutMs = 10000;
 
 Aircraft s_aircraft[kMaxAircraft];
 size_t s_aircraft_count = 0;
-PollFn s_poll_fn = nullptr;
 
-void pollNetwork() {
-  if (s_poll_fn != nullptr) {
-    s_poll_fn();
-  }
-}
 
 int performGetWithPoll(HTTPClient& http) {
   http.setConnectTimeout(kConnectAttemptMs);
   const unsigned long deadline = millis() + kRequestTimeoutMs;
   while (millis() < deadline) {
-    pollNetwork();
     const int code = http.GET();
     if (code > 0) {
       return code;
@@ -60,7 +53,6 @@ bool readResponseBodyWithPoll(HTTPClient& http, String& payload) {
   uint8_t buffer[512];
   const unsigned long deadline = millis() + kRequestTimeoutMs;
   while (millis() < deadline) {
-    pollNetwork();
     const int available = stream->available();
     if (available > 0) {
       const int to_read =
@@ -219,8 +211,6 @@ void fillTagFields(Aircraft* ac, const JsonObject& plane) {
 
 }  // namespace
 
-void setPollFn(PollFn fn) { s_poll_fn = fn; }
-
 size_t aircraftCount() { return s_aircraft_count; }
 
 const Aircraft* aircraftList() { return s_aircraft; }
@@ -276,6 +266,8 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     return true;
   }
 
+  Aircraft temp_aircraft[kMaxAircraft];
+
   size_t n = 0;
   for (JsonObject plane : ac) {
     if (n >= kMaxAircraft) {
@@ -288,17 +280,20 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
       continue;
     }
 
-    s_aircraft[n].lat = plane["lat"].as<float>();
-    s_aircraft[n].lon = plane["lon"].as<float>();
-    s_aircraft[n].nose_deg = pickNoseHeading(plane);
-    s_aircraft[n].track_deg = pickTrackHeading(plane);
-    s_aircraft[n].gs_knots = pickGroundSpeed(plane);
-    s_aircraft[n].is_heli = isHelicopter(plane);
-    fillTagFields(&s_aircraft[n], plane);
+    temp_aircraft[n].lat = plane["lat"].as<float>();
+    temp_aircraft[n].lon = plane["lon"].as<float>();
+    temp_aircraft[n].nose_deg = pickNoseHeading(plane);
+    temp_aircraft[n].track_deg = pickTrackHeading(plane);
+    temp_aircraft[n].gs_knots = pickGroundSpeed(plane);
+    temp_aircraft[n].is_heli = isHelicopter(plane);
+    fillTagFields(&temp_aircraft[n], plane);
     ++n;
   }
-
+  
+  // Double buffer copy
+  memcpy(s_aircraft, temp_aircraft, n * sizeof(Aircraft));
   s_aircraft_count = n;
+
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
   return true;
 }
