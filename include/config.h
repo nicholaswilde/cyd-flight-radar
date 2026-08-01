@@ -70,4 +70,6 @@ constexpr uint16_t kColorBlue = 0x8DBF;   // Blue (#89b4fa)
 constexpr uint16_t kTextOnYellow = 0x18E5; // Base (#1e1e2e)
 constexpr uint16_t kTextOnBlack = 0xCEBE; // Text (#cdd6f4)
 
+constexpr char kAppVersion[] = "v0.1.0";
+
 }  // namespace config

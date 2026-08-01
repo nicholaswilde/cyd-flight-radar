@@ -725,9 +725,23 @@ void renderFrame() {
   tft.setTextDatum(textdatum_t::top_left);
 }
 
+void drawAppVersion() {
+  tft.setTextDatum(textdatum_t::bottom_right);
+  tft.setTextColor(lgfx::color565(120, 120, 120), radar::kColorBackground);
+  displayFontEnsureLoaded(tft);
+  if (displayFontIsSmooth()) {
+    displayFontSetSmoothSize(tft, 0.45f);
+  } else {
+    displayFontSetBitmap(tft, &fonts::FreeSansBold9pt7b);
+  }
+  tft.drawString(config::kAppVersion, 238, 318);
+}
+
 void drawDetailsPanel() {
+  tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, radar::kColorBackground);
+  drawAppVersion();
+
   if (s_selected_hex[0] == '\0') {
-    tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, radar::kColorBackground);
     return;
   }
   
@@ -741,7 +755,6 @@ void drawDetailsPanel() {
     }
   }
   
-  tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, radar::kColorBackground);
   if (!ac) return; // Selected aircraft disappeared
   
   tft.drawFastHLine(0, radar::kSize, 240, radar::kColorGrid);
