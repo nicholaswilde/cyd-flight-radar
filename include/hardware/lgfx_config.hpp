@@ -20,7 +20,7 @@ public:
   LGFX() {
     {
       auto cfg = _bus.config();
-      cfg.spi_host = VSPI_HOST;
+      cfg.spi_host = SPI2_HOST;
       cfg.freq_write = 40000000;
       cfg.pin_sclk = TFT_SCLK;
       cfg.pin_mosi = TFT_MOSI;
@@ -64,7 +64,7 @@ public:
       cfg.pin_int    = XPT2046_IRQ;
       cfg.bus_shared = false;
       cfg.offset_rotation = 0;
-      cfg.spi_host = HSPI_HOST;
+      cfg.spi_host = SPI3_HOST;
       cfg.freq = 2500000;
       cfg.pin_sclk = XPT2046_CLK;
       cfg.pin_mosi = XPT2046_MOSI;

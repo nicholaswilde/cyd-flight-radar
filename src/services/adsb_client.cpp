@@ -36,7 +36,7 @@ void pollNetwork() {
 
 class PollingStream : public Stream {
  public:
-  explicit PollingStream(Stream& inner) : inner_(inner) {}
+  explicit PollingStream(WiFiClient* inner) : inner_(inner) {}
 
   int available() override {
     return (buf_pos_ < buf_len_) ? (buf_len_ - buf_pos_) : refill();
@@ -69,13 +69,27 @@ class PollingStream : public Stream {
 
  private:
   int refill() {
-    pollNetwork();
-    buf_len_ = inner_.readBytes(buf_, sizeof(buf_));
+    const unsigned long deadline = millis() + 5000;
+    while (millis() < deadline) {
+      pollNetwork();
+      int avail = inner_->available();
+      if (avail > 0) {
+        size_t to_read = avail > sizeof(buf_) ? sizeof(buf_) : avail;
+        buf_len_ = inner_->readBytes(buf_, to_read);
+        buf_pos_ = 0;
+        return buf_len_;
+      }
+      if (!inner_->connected() && inner_->available() <= 0) {
+        break; // Stream ended
+      }
+      delay(1);
+    }
+    buf_len_ = 0;
     buf_pos_ = 0;
-    return buf_len_;
+    return 0;
   }
 
-  Stream& inner_;
+  WiFiClient* inner_;
   uint8_t buf_[256];
   size_t buf_pos_ = 0;
   size_t buf_len_ = 0;
@@ -339,11 +353,18 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     return false;
   }
 
-  PollingStream polling_stream(*s_http.getStreamPtr());
+  String payload;
+  if (!readResponseBodyWithPoll(s_http, payload)) {
+    Serial.println("adsb: failed to read response body");
+    s_http.end();
+    return false;
+  }
+  s_http.end();
+
   JsonDocument doc;
   const DeserializationError err = deserializeJson(
-    doc, polling_stream, DeserializationOption::Filter(filterDoc()));
-  s_http.end();
+    doc, payload, DeserializationOption::Filter(filterDoc()));
+  
   if (err) {
     Serial.printf("adsb: JSON parse error: %s\n", err.c_str());
     return false;

@@ -20,7 +20,7 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
 * **Military Aircraft Detection**: Highlights military planes in a distinct peach color with a `[MIL]` tag.
 * **Accurate Projections**: Uses latitude-corrected scaling so east-west distances aren't distorted on the radar.
-* **Memory Optimized**: Employs streaming JSON parsing to eliminate heap fragmentation and run stably for long periods.
+* **Memory Optimized**: Employs zero-copy JSON parsing from local buffers to prevent `ArduinoJson` out-of-memory crashes, allowing it to run stably for long periods without heap fragmentation.
 * **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `PlaneRadar-Setup-XXXX`) for configuring network credentials and radar coordinates.
 
 ## ⚙️ Configuration

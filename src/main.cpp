@@ -165,9 +165,6 @@ void setup() {
     err = nvs_flash_init();
   }
 
-  Serial.println();
-  Serial.println("Plane Radar");
-
   bootButton.begin();
   displayInit();
   
