@@ -3,10 +3,15 @@
 #include <lvgl.h>
 #include "hardware/display.h"
 #include "ui/radar_display.h"
+#include "catppuccin.h"
 
 extern LGFX tft;
 
 namespace ui::settings {
+
+static lv_color_t get_lv_color(uint32_t hex) {
+    return lv_color_make((hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF);
+}
 
 static bool s_visible = false;
 static bool s_pending_hide = false;
@@ -74,26 +79,50 @@ void setup() {
     
     // Build the UI
     settings_screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x1e1e2e), 0); // Catppuccin Mocha Base
+    lv_obj_set_style_bg_color(settings_screen, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).base), 0);
     
     lv_obj_t * title = lv_label_create(settings_screen);
-    lv_label_set_text(title, "Radar Settings");
-    lv_obj_set_style_text_color(title, lv_color_hex(0xcdd6f4), 0); // Text
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
+    lv_label_set_text(title, "Settings");
+    lv_obj_set_style_text_color(title, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
     
+    lv_obj_t * list = lv_obj_create(settings_screen);
+    lv_obj_set_size(list, LV_PCT(95), LV_PCT(70));
+    lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 50);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_bg_color(list, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).base), 0);
+    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_style_pad_all(list, 5, 0);
+    lv_obj_set_style_pad_row(list, 10, 0);
+    lv_obj_set_scroll_dir(list, LV_DIR_VER);
+    
+    // Toggle Airports row
+    lv_obj_t * row_airports = lv_obj_create(list);
+    lv_obj_clear_flag(row_airports, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(row_airports, LV_PCT(100), 40);
+    lv_obj_set_flex_flow(row_airports, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row_airports, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_color(row_airports, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).mantle), 0);
+    lv_obj_set_style_border_width(row_airports, 0, 0);
+    lv_obj_set_style_pad_all(row_airports, 10, 0);
+
+    lv_obj_t * lbl_airports = lv_label_create(row_airports);
+    lv_label_set_text(lbl_airports, "Toggle Airports");
+    lv_obj_set_style_text_color(lbl_airports, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+
+    lv_obj_t * sw_airports = lv_switch_create(row_airports);
+    
+    // Close button
     lv_obj_t * close_btn = lv_btn_create(settings_screen);
-    lv_obj_align(close_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_obj_set_size(close_btn, 100, 40);
+    lv_obj_align(close_btn, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_event_cb(close_btn, close_btn_event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_set_style_bg_color(close_btn, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).blue), 0);
+    
     lv_obj_t * close_label = lv_label_create(close_btn);
     lv_label_set_text(close_label, "Close");
-    
-    // Add a placeholder toggle
-    lv_obj_t * sw = lv_switch_create(settings_screen);
-    lv_obj_align(sw, LV_ALIGN_CENTER, 0, -20);
-    lv_obj_t * sw_label = lv_label_create(settings_screen);
-    lv_label_set_text(sw_label, "Toggle Airports");
-    lv_obj_set_style_text_color(sw_label, lv_color_hex(0xa6adc8), 0); // Subtext0
-    lv_obj_align_to(sw_label, sw, LV_ALIGN_OUT_TOP_MID, 0, -10);
+    lv_obj_set_style_text_color(close_label, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).crust), 0);
+    lv_obj_center(close_label);
     
     last_tick_millis = millis();
 }
