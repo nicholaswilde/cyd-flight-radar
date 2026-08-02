@@ -306,34 +306,7 @@ static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
     return row;
 }
 
-void setup() {
-    s_prefs.begin("settings", false);
-    s_theme_flavor = s_prefs.getInt("theme", CATPPUCCIN_MOCHA);
-
-    lv_init();
-    
-    // Allocate draw buffer (reduce from 40 lines to 10 lines to save heap for SSL)
-    const size_t buf_size = tft.width() * 10;
-    buf1 = (lv_color_t*)malloc(buf_size * sizeof(lv_color_t));
-    lv_disp_draw_buf_init(&draw_buf, buf1, nullptr, buf_size);
-
-    // Initialize the display
-    static lv_disp_drv_t disp_drv;
-    lv_disp_drv_init(&disp_drv);
-    disp_drv.hor_res = tft.width();
-    disp_drv.ver_res = tft.height();
-    disp_drv.flush_cb = my_disp_flush;
-    disp_drv.draw_buf = &draw_buf;
-    lv_disp_drv_register(&disp_drv);
-
-    // Initialize the (dummy) input device driver
-    static lv_indev_drv_t indev_drv;
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    indev_drv.read_cb = my_touchpad_read;
-    lv_indev_drv_register(&indev_drv);
-    
-    // Build the UI
+static void build_ui() {
     settings_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(settings_screen, get_lv_color(getCatppuccinFlavor(s_theme_flavor).base), 0);
     
@@ -376,6 +349,34 @@ void setup() {
     lv_label_set_text(close_label, "Close");
     lv_obj_set_style_text_color(close_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).crust), 0);
     lv_obj_center(close_label);
+}
+
+void setup() {
+    s_prefs.begin("settings", false);
+    s_theme_flavor = s_prefs.getInt("theme", CATPPUCCIN_MOCHA);
+
+    lv_init();
+    
+    // Allocate draw buffer (reduce from 40 lines to 10 lines to save heap for SSL)
+    const size_t buf_size = tft.width() * 10;
+    buf1 = (lv_color_t*)malloc(buf_size * sizeof(lv_color_t));
+    lv_disp_draw_buf_init(&draw_buf, buf1, nullptr, buf_size);
+
+    // Initialize the display
+    static lv_disp_drv_t disp_drv;
+    lv_disp_drv_init(&disp_drv);
+    disp_drv.hor_res = tft.width();
+    disp_drv.ver_res = tft.height();
+    disp_drv.flush_cb = my_disp_flush;
+    disp_drv.draw_buf = &draw_buf;
+    lv_disp_drv_register(&disp_drv);
+
+    // Initialize the (dummy) input device driver
+    static lv_indev_drv_t indev_drv;
+    lv_indev_drv_init(&indev_drv);
+    indev_drv.type = LV_INDEV_TYPE_POINTER;
+    indev_drv.read_cb = my_touchpad_read;
+    lv_indev_drv_register(&indev_drv);
     
     last_tick_millis = millis();
 }
@@ -393,12 +394,15 @@ void loop() {
 
 void show() {
     s_visible = true;
+    build_ui();
     lv_scr_load(settings_screen);
-    lv_obj_invalidate(lv_scr_act()); // Force LVGL to redraw the entire screen
 }
 
 void hide() {
     s_visible = false;
+    lv_obj_del(settings_screen);
+    settings_screen = nullptr;
+    
     // We clear the screen completely so LovyanGFX can draw the radar over it again
     const CatppuccinColors& flavor = getCatppuccinFlavor(s_theme_flavor);
     uint32_t mantle = flavor.mantle;
