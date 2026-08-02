@@ -193,8 +193,8 @@ static void tz_btn_event_cb(lv_event_t * e) {
 static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
     lv_obj_t * row = lv_obj_create(parent);
     lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_size(row, LV_PCT(100), 50);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_size(row, LV_PCT(100), 75);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).mantle), 0);
     lv_obj_set_style_border_width(row, 0, 0);
@@ -203,18 +203,18 @@ static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
     lv_obj_t * lbl = lv_label_create(row);
     lv_label_set_text(lbl, "Timezone");
     lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+    lv_obj_set_width(lbl, LV_PCT(100));
 
     lv_obj_t * controls = lv_obj_create(row);
-    lv_obj_set_size(controls, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_size(controls, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(controls, 0, 0);
     lv_obj_set_style_border_width(controls, 0, 0);
     lv_obj_set_style_pad_all(controls, 0, 0);
     lv_obj_set_flex_flow(controls, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(controls, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(controls, 10, 0);
 
     lv_obj_t * btn_minus = lv_btn_create(controls);
-    lv_obj_set_size(btn_minus, 30, 30);
+    lv_obj_set_size(btn_minus, 35, 30);
     lv_obj_add_event_cb(btn_minus, tz_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)-1);
     lv_obj_set_style_bg_color(btn_minus, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).overlay), 0);
     lv_obj_t * lbl_minus = lv_label_create(btn_minus);
@@ -224,11 +224,11 @@ static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
     tz_val_label = lv_label_create(controls);
     lv_label_set_text(tz_val_label, tz_presets[s_tz_idx].label);
     lv_obj_set_style_text_color(tz_val_label, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).blue), 0);
-    lv_obj_set_width(tz_val_label, 80);
+    lv_obj_set_flex_grow(tz_val_label, 1);
     lv_obj_set_style_text_align(tz_val_label, LV_TEXT_ALIGN_CENTER, 0);
 
     lv_obj_t * btn_plus = lv_btn_create(controls);
-    lv_obj_set_size(btn_plus, 30, 30);
+    lv_obj_set_size(btn_plus, 35, 30);
     lv_obj_add_event_cb(btn_plus, tz_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)1);
     lv_obj_set_style_bg_color(btn_plus, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).overlay), 0);
     lv_obj_t * lbl_plus = lv_label_create(btn_plus);
