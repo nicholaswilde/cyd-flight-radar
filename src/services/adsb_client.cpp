@@ -8,6 +8,8 @@
 #include <cstring>
 
 #include "config.h"
+#include "services/radar_location.h"
+#include "ui/settings_menu.h"
 
 namespace services::adsb {
 
@@ -361,8 +363,15 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     if (!plane["lat"].is<float>() || !plane["lon"].is<float>()) {
       continue;
     }
-    if (isOnGround(plane) && !config::kAdsbShowGroundAircraft) {
-      continue;
+    if (isOnGround(plane)) {
+      if (!ui::settings::isGroundAircraftEnabled()) continue;
+    } else {
+      float alt = 0.0f;
+      if (readJsonFloat(plane, "alt_baro", &alt) || readJsonFloat(plane, "alt_geom", &alt)) {
+        if (alt > ui::settings::getMaxAltitudeFilter()) {
+          continue;
+        }
+      }
     }
 
     s_aircraft_buffer[n].lat = plane["lat"].as<float>();
