@@ -16,6 +16,7 @@
 #include "ui/radar_display.h"
 #include "ui/radar_range.h"
 #include "ui/status_screens.h"
+#include "ui/settings_menu.h"
 
 namespace {
 
@@ -60,8 +61,7 @@ void handleInput() {
     }
   } else if (action == ButtonAction::LONG_PRESS) {
     if (g_screen_on) {
-      g_screen_on = false;
-      tft.setBrightness(0);
+      ui::settings::show();
     }
   }
 
@@ -87,11 +87,14 @@ void handleInput() {
   } else if (!is_touched && s_was_touched) {
     s_was_touched = false;
     unsigned long duration = millis() - s_touch_start_ms;
-    if (duration > 40 && duration < 2000) {
+    if (ui::settings::isVisible()) {
+       // LVGL handles touch when visible
+    } else if (duration > 40 && duration < 600) {
       if (ui::radarDisplayHandleTouch(s_tap_x, s_tap_y)) {
         ui::radarDisplayRefreshAircraft();
-      } else {
       }
+    } else if (duration >= 600) {
+      ui::settings::show();
     }
   }
 }
@@ -142,6 +145,8 @@ void setup() {
   services::location::init();
   ui::radar::rangeInit();
 
+  ui::settings::setup();
+
   wifiManager.begin();
   if (wifiManager.getState() == WIFI_STATE_CONNECTING || wifiManager.getState() == WIFI_STATE_DISCONNECTED) {
     statusScreenConnectingBegin(WIFI_SSID);
@@ -151,6 +156,7 @@ void setup() {
 void loop() {
   handleInput();
   wifiManager.update();
+  ui::settings::loop();
 
   WifiState current_state = wifiManager.getState();
   
@@ -179,10 +185,12 @@ void loop() {
     if (!g_radar_visible) {
       showRadarIfConnected();
     } else {
-      static unsigned long s_last_sweep_ms = 0;
-      if (g_screen_on && config::kRadarSweepEnabled && millis() - s_last_sweep_ms >= 50) { // 20 FPS
-        s_last_sweep_ms = millis();
-        ui::radarDisplayUpdateAnimation();
+      if (!ui::settings::isVisible() && g_screen_on) {
+        static unsigned long s_last_sweep_ms = 0;
+        if (config::kRadarSweepEnabled && millis() - s_last_sweep_ms >= 50) { // 20 FPS
+          s_last_sweep_ms = millis();
+          ui::radarDisplayUpdateAnimation();
+        }
       }
       
       if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {

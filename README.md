@@ -15,8 +15,12 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
   * **Short Press (Screen On)**: Cycle through radar distances.
   * **Long Press (Screen On)**: Turn the screen off and pause rendering to save power.
   * **Short Press (Screen Off)**: Wake the display back up.
+* **On-Device Settings Menu**: Long-press the touch screen to bring up an LVGL-powered settings overlay.
 * **Aesthetics**: Fully themed using the gorgeous [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) color palette.
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
+* **Military Aircraft Detection**: Highlights military planes in a distinct peach color with a `[MIL]` tag.
+* **Accurate Projections**: Uses latitude-corrected scaling so east-west distances aren't distorted on the radar.
+* **Memory Optimized**: Employs streaming JSON parsing to eliminate heap fragmentation and run stably for long periods.
 * **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `PlaneRadar-Setup-XXXX`) for configuring network credentials and radar coordinates.
 
 ## ⚙️ Configuration
@@ -37,6 +41,34 @@ This project is heavily based on and ported from [MatixYo's ESP32-Plane-Radar](h
 ## :balance_scale: License
 
 [Apache License 2.0](LICENSE)
+
+### Third-Party Licenses
+
+This project is heavily based on and ported from [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar), which is licensed under the MIT License:
+
+```text
+MIT License
+
+Copyright (c) 2026 MatixYo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## :writing_hand: Author
 

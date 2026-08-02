@@ -26,6 +26,7 @@ uint16_t kColorGrid = lgfx::color565(kGridR, kGridG, kGridB);
 uint16_t kColorLabel = lgfx::color565(205, 214, 244);
 uint16_t kColorCenter = lgfx::color565(205, 214, 244);
 uint16_t kColorAircraft = lgfx::color565(kAircraftR, kAircraftG, kAircraftB);
+uint16_t kColorMilitary = lgfx::color565(kMilitaryR, kMilitaryG, kMilitaryB);
 uint16_t kColorHelicopter = lgfx::color565(kHeliR, kHeliG, kHeliB);
 uint16_t kColorTrackVector = lgfx::color565(kTrackR, kTrackG, kTrackB);
 uint16_t kColorTagType = lgfx::color565(kTagTypeR, kTagTypeG, kTagTypeB);
@@ -187,11 +188,15 @@ void initPalette() {
   if (config::kDisplayRgbOrder) {
     radar::kColorAircraft =
         tft.color565(radar::kAircraftB, radar::kAircraftG, radar::kAircraftR);
+    radar::kColorMilitary =
+        tft.color565(radar::kMilitaryB, radar::kMilitaryG, radar::kMilitaryR);
     radar::kColorHelicopter =
         tft.color565(radar::kHeliB, radar::kHeliG, radar::kHeliR);
   } else {
     radar::kColorAircraft =
         tft.color565(radar::kAircraftR, radar::kAircraftG, radar::kAircraftB);
+    radar::kColorMilitary =
+        tft.color565(radar::kMilitaryR, radar::kMilitaryG, radar::kMilitaryB);
     radar::kColorHelicopter =
         tft.color565(radar::kHeliR, radar::kHeliG, radar::kHeliB);
   }
@@ -208,11 +213,16 @@ void initPalette() {
 }
 
 constexpr float kKmPerDeg = 111.0f;
+constexpr float kDegToRad = 3.14159265f / 180.0f;
 
 void offsetKmFromCenter(float lat, float lon, float* dx_km, float* dy_km,
                         float* dist_km) {
-  *dx_km =
-      static_cast<float>(lon - services::location::lon()) * kKmPerDeg;
+  // Longitude degrees shrink toward the poles; scale by cos(latitude) so
+  // east-west distance isn't overstated away from the equator.
+  const float center_lat_rad =
+      static_cast<float>(services::location::lat()) * kDegToRad;
+  *dx_km = static_cast<float>(lon - services::location::lon()) * kKmPerDeg *
+           cosf(center_lat_rad);
   *dy_km =
       static_cast<float>(lat - services::location::lat()) * kKmPerDeg;
   *dist_km = sqrtf((*dx_km) * (*dx_km) + (*dy_km) * (*dy_km));
@@ -482,6 +492,7 @@ struct BeyondDotDrawItem {
   int y = 0;
   int dist_sq = 0;
   bool is_heli = false;
+  bool is_military = false;
 };
 
 void sortDrawItemsFarFirst(AircraftDrawItem* items, size_t count) {
@@ -547,12 +558,15 @@ void drawAircraft() {
     dots[dot_count].y = dot_y;
     dots[dot_count].dist_sq = distSqFromCenter(dot_x, dot_y);
     dots[dot_count].is_heli = planes[i].is_heli;
+    dots[dot_count].is_military = planes[i].is_military;
     ++dot_count;
   }
 
   sortBeyondDotsFarFirst(dots, dot_count);
   for (size_t d = 0; d < dot_count; ++d) {
-    drawBeyondRingDot(dots[d].x, dots[d].y, dots[d].is_heli ? radar::kColorHelicopter : radar::kColorAircraft);
+    drawBeyondRingDot(dots[d].x, dots[d].y, 
+        dots[d].is_heli ? radar::kColorHelicopter : 
+        (dots[d].is_military ? radar::kColorMilitary : radar::kColorAircraft));
   }
 
   sortDrawItemsFarFirst(items, draw_count);
@@ -570,7 +584,8 @@ void drawAircraft() {
     if (planes[i].is_heli) {
       drawHelicopterSymbol(x, y, planes[i].nose_deg, radar::kColorHelicopter);
     } else {
-      drawHeadingTriangle(x, y, planes[i].nose_deg, radar::kColorAircraft);
+      drawHeadingTriangle(x, y, planes[i].nose_deg, 
+          planes[i].is_military ? radar::kColorMilitary : radar::kColorAircraft);
     }
   }
   for (size_t d = 0; d < draw_count; ++d) {
@@ -798,6 +813,15 @@ void drawDetailsPanel() {
   drawClock();
 
   if (s_selected_hex[0] == '\0') {
+    tft.setTextDatum(textdatum_t::middle_center);
+    tft.setTextColor(radar::kColorLabel, radar::kColorBackground);
+    displayFontEnsureLoaded(tft);
+    if (displayFontIsSmooth()) {
+      displayFontSetSmoothSize(tft, 1.2f);
+    } else {
+      displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
+    }
+    tft.drawString("CYD Flight Radar", 120, radar::kSize + (320 - radar::kSize) / 2);
     return;
   }
   
@@ -827,12 +851,12 @@ void drawDetailsPanel() {
   
   tft.setTextColor(radar::kColorLabel, radar::kColorBackground);
   if (ac->reg[0] != '\0') {
-    snprintf(buf, sizeof(buf), "%s (%s)", ac->callsign, ac->reg);
+    snprintf(buf, sizeof(buf), "%s (%s)%s", ac->callsign, ac->reg, ac->is_military ? " [MIL]" : "");
   } else {
     if (ac->callsign[0] == '~' || ac->callsign[0] == '\0') {
-      snprintf(buf, sizeof(buf), "Hex: %s", ac->hex);
+      snprintf(buf, sizeof(buf), "Hex: %s%s", ac->hex, ac->is_military ? " [MIL]" : "");
     } else {
-      snprintf(buf, sizeof(buf), "%s", ac->callsign);
+      snprintf(buf, sizeof(buf), "%s%s", ac->callsign, ac->is_military ? " [MIL]" : "");
     }
   }
   tft.drawString(buf, 4, ly);

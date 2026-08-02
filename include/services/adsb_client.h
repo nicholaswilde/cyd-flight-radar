@@ -17,6 +17,7 @@ struct Aircraft {
   char reg[10];
   char desc[32];
   bool is_heli;
+  bool is_military;
 };
 
 constexpr size_t kMaxAircraft = 64;
