@@ -381,6 +381,8 @@ void setup() {
     last_tick_millis = millis();
 }
 
+static lv_obj_t* s_default_screen = nullptr;
+
 void loop() {
     if (s_visible) {
         lv_timer_handler();
@@ -394,12 +396,19 @@ void loop() {
 
 void show() {
     s_visible = true;
+    if (s_default_screen == nullptr) {
+        s_default_screen = lv_scr_act();
+    }
     build_ui();
     lv_scr_load(settings_screen);
 }
 
 void hide() {
     s_visible = false;
+    // Switch back to the default empty screen BEFORE deleting the settings screen
+    if (s_default_screen) {
+        lv_scr_load(s_default_screen);
+    }
     lv_obj_del(settings_screen);
     settings_screen = nullptr;
     
