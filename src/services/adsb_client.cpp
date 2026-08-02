@@ -249,17 +249,95 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     return false;
   }
 
-  String payload = s_http.getString();
-  s_http.end();
-  
-  if (payload.isEmpty()) {
-    Serial.println("adsb: payload is empty");
+  WiFiClient* client_stream = s_http.getStreamPtr();
+  if (client_stream == nullptr) {
+    Serial.println("adsb: no stream available");
+    s_http.end();
     return false;
   }
 
+  // If Transfer-Encoding is chunked, s_http.getSize() returns -1.
+  // In that case, we MUST decode the chunks.
+  // Otherwise, we can read directly.
+  class ChunkedStream : public Stream {
+   public:
+    explicit ChunkedStream(Stream* inner) : inner_(inner) {}
+  
+    int available() override {
+      if (eof_) return 0;
+      if (chunk_left_ == 0 && !readChunkHeader()) return 0;
+      int avail = inner_->available();
+      return avail < chunk_left_ ? avail : chunk_left_;
+    }
+  
+    int read() override {
+      if (eof_) return -1;
+      if (chunk_left_ == 0 && !readChunkHeader()) return -1;
+      
+      // Wait for data if not available
+      long timeout = millis() + 5000;
+      while (inner_->available() == 0) {
+        if (millis() > timeout) return -1;
+        delay(1);
+      }
+      
+      int c = inner_->read();
+      if (c >= 0) {
+        chunk_left_--;
+        if (chunk_left_ == 0) {
+          // Read trailing \r\n
+          long to = millis() + 1000;
+          while (inner_->available() < 2 && millis() < to) delay(1);
+          inner_->read();
+          inner_->read();
+        }
+      }
+      return c;
+    }
+  
+    int peek() override {
+      if (eof_) return -1;
+      if (chunk_left_ == 0 && !readChunkHeader()) return -1;
+      long timeout = millis() + 5000;
+      while (inner_->available() == 0) {
+        if (millis() > timeout) return -1;
+        delay(1);
+      }
+      return inner_->peek();
+    }
+    
+    size_t write(uint8_t) override { return 0; }
+  
+   private:
+    bool readChunkHeader() {
+      if (eof_) return false;
+      String header = inner_->readStringUntil('\n');
+      header.trim();
+      if (header.length() == 0) return false;
+      chunk_left_ = strtol(header.c_str(), nullptr, 16);
+      if (chunk_left_ == 0) {
+        eof_ = true;
+        return false;
+      }
+      return true;
+    }
+  
+    Stream* inner_;
+    long chunk_left_ = 0;
+    bool eof_ = false;
+  };
+
   JsonDocument doc;
-  const DeserializationError err = deserializeJson(
-    doc, payload, DeserializationOption::Filter(filterDoc()));
+  DeserializationError err;
+  
+  if (s_http.getSize() == -1) {
+    ChunkedStream chunked(client_stream);
+    err = deserializeJson(doc, chunked, DeserializationOption::Filter(filterDoc()));
+  } else {
+    err = deserializeJson(doc, *client_stream, DeserializationOption::Filter(filterDoc()));
+  }
+  
+  s_http.end();
   
   if (err) {
     Serial.printf("adsb: JSON parse error: %s\n", err.c_str());
