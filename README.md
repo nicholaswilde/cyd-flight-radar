@@ -42,7 +42,8 @@ This project is heavily based on and ported from [MatixYo's ESP32-Plane-Radar](h
 
 [Apache License 2.0](LICENSE)
 
-### Third-Party Licenses
+<details>
+<summary>Third-Party Licenses</summary>
 
 This project is heavily based on and ported from [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar), which is licensed under the MIT License:
 
@@ -69,6 +70,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+</details>
 
 ## :writing_hand: Author
 
