@@ -193,13 +193,6 @@ void loop() {
     configTzTime(ui::settings::getTimezoneStr(), config::kNtpServer);
   }
 
-  if (ui::settings::isThemeChanged()) {
-    ui::settings::clearThemeChanged();
-    ui::updateThemeColors();
-    if (g_radar_visible) {
-      ui::radarDisplayDraw();
-    }
-  }
 
   if (current_state != g_last_wifi_state) {
     if (current_state == WIFI_STATE_CONNECTED) {

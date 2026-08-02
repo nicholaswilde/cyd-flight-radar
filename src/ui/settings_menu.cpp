@@ -25,7 +25,6 @@ static int s_max_altitude = 50000;
 static int s_sweep_speed = 6000;
 static Preferences s_prefs;
 static int s_theme_flavor = CATPPUCCIN_MOCHA;
-static bool s_theme_changed = false;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t* buf1 = nullptr;
 static lv_obj_t* settings_screen = nullptr;
@@ -203,12 +202,12 @@ static void theme_btn_event_cb(lv_event_t * e) {
     if (s_theme_flavor < 0) s_theme_flavor = 3;
     if (s_theme_flavor > 3) s_theme_flavor = 0;
     
-    s_theme_changed = true;
     lv_label_set_text(theme_val_label, theme_names[s_theme_flavor]);
     s_prefs.putInt("theme", s_theme_flavor);
+    ui::updateThemeColors();
     
     // Changing the theme immediately requires refreshing all colors in the settings menu,
-    // which is complex. For now, it will apply when re-opening settings or main app.
+    // which is complex. For now, it will apply when re-opening settings.
 }
 
 static lv_obj_t* create_theme_row(lv_obj_t * parent) {
@@ -426,11 +425,9 @@ void setThemeFlavor(int flavor) {
         if (s_theme_flavor != flavor) {
             s_theme_flavor = flavor;
             s_prefs.putInt("theme", s_theme_flavor);
-            s_theme_changed = true;
+            ui::updateThemeColors();
         }
     }
 }
-bool isThemeChanged() { return s_theme_changed; }
-void clearThemeChanged() { s_theme_changed = false; }
 
 } // namespace ui::settings
