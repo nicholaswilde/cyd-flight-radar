@@ -15,6 +15,7 @@ static lv_color_t get_lv_color(uint32_t hex) {
 
 static bool s_visible = false;
 static bool s_pending_hide = false;
+static bool s_show_airports = true;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t* buf1 = nullptr;
 static lv_obj_t* settings_screen = nullptr;
@@ -51,6 +52,11 @@ static void close_btn_event_handler(lv_event_t * e) {
     if(code == LV_EVENT_CLICKED) {
         s_pending_hide = true;
     }
+}
+
+static void airports_switch_event_cb(lv_event_t * e) {
+    lv_obj_t * sw = lv_event_get_target(e);
+    s_show_airports = lv_obj_has_state(sw, LV_STATE_CHECKED);
 }
 
 void setup() {
@@ -111,6 +117,10 @@ void setup() {
     lv_obj_set_style_text_color(lbl_airports, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
 
     lv_obj_t * sw_airports = lv_switch_create(row_airports);
+    if (s_show_airports) {
+        lv_obj_add_state(sw_airports, LV_STATE_CHECKED);
+    }
+    lv_obj_add_event_cb(sw_airports, airports_switch_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
     
     // Close button
     lv_obj_t * close_btn = lv_btn_create(settings_screen);
@@ -153,6 +163,10 @@ void hide() {
 
 bool isVisible() {
     return s_visible;
+}
+
+bool isAirportsEnabled() {
+    return s_show_airports;
 }
 
 } // namespace ui::settings

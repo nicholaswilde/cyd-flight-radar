@@ -10,6 +10,7 @@ void loop();
 void show();
 void hide();
 bool isVisible();
+bool isAirportsEnabled();
 
 } // namespace ui::settings
 

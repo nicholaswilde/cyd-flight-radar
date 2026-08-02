@@ -15,6 +15,7 @@
 #include "ui/radar_range.h"
 #include "ui/radar_theme.h"
 #include "ui/runway_overlay.h"
+#include "ui/settings_menu.h"
 
 
 
@@ -701,7 +702,9 @@ void drawStaticGrid(Gfx& gfx) {
   drawRings(cx, cy, grid_r);
   drawCrosshairs(cx, cy, grid_r, radar::kColorGrid);
   initPalette();
-  runway::drawLargeAirportRunways(gfx);
+  if (settings::isAirportsEnabled()) {
+    runway::drawLargeAirportRunways(gfx);
+  }
   drawCenterDot(cx, cy);
   drawCardinalLabels();
   drawScaleLabel(cx, cy, grid_r);
