@@ -11,6 +11,12 @@ void show();
 void hide();
 bool isVisible();
 bool isAirportsEnabled();
+bool isMediumAirportsEnabled();
+bool isGroundAircraftEnabled();
+bool isRadarSweepEnabled();
+bool isAutoDimmingEnabled();
+int getMaxAltitudeFilter();
+int getSweepRotationSpeedMs();
 
 } // namespace ui::settings
 
