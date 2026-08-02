@@ -732,7 +732,7 @@ bool ensureFrameSprite() {
 }
 
 void drawRadarSweep(lgfx::LovyanGFX& gfx) {
-  if (!config::kRadarSweepEnabled) {
+  if (!settings::isRadarSweepEnabled()) {
     return;
   }
 
@@ -740,8 +740,8 @@ void drawRadarSweep(lgfx::LovyanGFX& gfx) {
   const int cy = radar::kCenterY;
   const int r = radar::kGridOuterRadius;
 
-  const float speed = 360.0f / config::kRadarSweepDurationMs;
-  const uint32_t t_ms = static_cast<uint32_t>(config::kRadarSweepDurationMs);
+  const uint32_t t_ms = static_cast<uint32_t>(settings::getSweepRotationSpeedMs());
+  const float speed = 360.0f / t_ms;
   const float current_angle_deg = (millis() % t_ms) * speed;
   const float current_angle_rad = current_angle_deg * M_PI / 180.0f;
   

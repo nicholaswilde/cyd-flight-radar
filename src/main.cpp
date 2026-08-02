@@ -187,7 +187,7 @@ void loop() {
     } else {
       if (!ui::settings::isVisible() && g_screen_on) {
         static unsigned long s_last_sweep_ms = 0;
-        if (config::kRadarSweepEnabled && millis() - s_last_sweep_ms >= 50) { // 20 FPS
+        if (ui::settings::isRadarSweepEnabled() && millis() - s_last_sweep_ms >= 50) { // 20 FPS
           s_last_sweep_ms = millis();
           ui::radarDisplayUpdateAnimation();
         }
