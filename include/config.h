@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-
 #include <driver/gpio.h>
 
 namespace config {
@@ -76,6 +75,21 @@ constexpr char kAppVersion[] = "v0.1.0";
 // Find your region's POSIX string here: https://gist.github.com/alwynallan/24d96091655391107939
 constexpr char kNtpServer[] = "pool.ntp.org";
 constexpr char kTimezoneDefault[] = "UTC0"; // Default: UTC
+
+// --- Theme Settings ---
+#define COLOR_BASE         (getCatppuccinFlavor(ui::settings::getThemeFlavor()).base)
+#define COLOR_MANTLE       (getCatppuccinFlavor(ui::settings::getThemeFlavor()).mantle)
+#define COLOR_CRUST        (getCatppuccinFlavor(ui::settings::getThemeFlavor()).crust)
+#define COLOR_TEXT         (getCatppuccinFlavor(ui::settings::getThemeFlavor()).text)
+#define COLOR_OVERLAY      (getCatppuccinFlavor(ui::settings::getThemeFlavor()).overlay)
+#define COLOR_BLUE         (getCatppuccinFlavor(ui::settings::getThemeFlavor()).blue)
+#define COLOR_GREEN        (getCatppuccinFlavor(ui::settings::getThemeFlavor()).green)
+#define COLOR_RED          (getCatppuccinFlavor(ui::settings::getThemeFlavor()).red)
+#define COLOR_YELLOW       (getCatppuccinFlavor(ui::settings::getThemeFlavor()).yellow)
+#define COLOR_PEACH        (getCatppuccinFlavor(ui::settings::getThemeFlavor()).peach)
+#define COLOR_MAUVE        (getCatppuccinFlavor(ui::settings::getThemeFlavor()).mauve)
+#define COLOR_LAVENDER     (getCatppuccinFlavor(ui::settings::getThemeFlavor()).lavender)
+#define COLOR_HEADER_TEXT  (getCatppuccinFlavor(ui::settings::getThemeFlavor()).header_text)
 
 // --- Radar Sweep Animation ---
 constexpr bool kRadarSweepEnabled = true;

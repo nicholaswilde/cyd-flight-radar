@@ -8,6 +8,7 @@ void radarDisplayDraw();
 /** Redraw aircraft only (blits cached grid; no full-screen clear). */
 void radarDisplayUpdateAnimation();
 void radarDisplayRefreshAircraft();
+void updateThemeColors();
 
 bool radarDisplayHandleTouch(int x, int y);
 

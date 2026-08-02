@@ -20,6 +20,10 @@ int getSweepRotationSpeedMs();
 bool isTimezoneChanged();
 void clearTimezoneChanged();
 const char* getTimezoneStr();
+int getThemeFlavor();
+void setThemeFlavor(int flavor);
+bool isThemeChanged();
+void clearThemeChanged();
 
 } // namespace ui::settings
 

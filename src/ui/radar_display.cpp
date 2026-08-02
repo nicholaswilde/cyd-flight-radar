@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "config.h"
+#include "catppuccin.h"
 #include "hardware/display.h"
 #include "hardware/display_font.h"
 #include "services/adsb_client.h"
@@ -22,20 +23,42 @@
 namespace ui {
 namespace radar {
 
-uint16_t kColorBackground = lgfx::color565(kBgR, kBgG, kBgB);
-uint16_t kColorGrid = lgfx::color565(kGridR, kGridG, kGridB);
-uint16_t kColorLabel = lgfx::color565(205, 214, 244);
-uint16_t kColorCenter = lgfx::color565(205, 214, 244);
-uint16_t kColorAircraft = lgfx::color565(kAircraftR, kAircraftG, kAircraftB);
-uint16_t kColorMilitary = lgfx::color565(kMilitaryR, kMilitaryG, kMilitaryB);
-uint16_t kColorHelicopter = lgfx::color565(kHeliR, kHeliG, kHeliB);
-uint16_t kColorTrackVector = lgfx::color565(kTrackR, kTrackG, kTrackB);
-uint16_t kColorTagType = lgfx::color565(kTagTypeR, kTagTypeG, kTagTypeB);
-uint16_t kColorTagAltitude = lgfx::color565(kTagAltR, kTagAltG, kTagAltB);
-uint16_t kColorRunway = lgfx::color565(kRunwayR, kRunwayG, kRunwayB);
-uint16_t kColorRunwayLabel = lgfx::color565(kRunwayLabelR, kRunwayLabelG, kRunwayLabelB);
+static uint16_t hex2rgb565(uint32_t hex) {
+    uint8_t r = (hex >> 16) & 0xFF;
+    uint8_t g = (hex >> 8) & 0xFF;
+    uint8_t b = hex & 0xFF;
+    return lgfx::color565(r, g, b);
+}
+
+uint16_t kColorBackground = hex2rgb565(COLOR_MANTLE);
+uint16_t kColorGrid = hex2rgb565(COLOR_OVERLAY);
+uint16_t kColorLabel = hex2rgb565(COLOR_TEXT);
+uint16_t kColorCenter = hex2rgb565(COLOR_TEXT);
+uint16_t kColorAircraft = hex2rgb565(COLOR_RED);
+uint16_t kColorMilitary = hex2rgb565(COLOR_PEACH);
+uint16_t kColorHelicopter = hex2rgb565(COLOR_BLUE);
+uint16_t kColorTrackVector = hex2rgb565(COLOR_MAUVE);
+uint16_t kColorTagType = hex2rgb565(COLOR_YELLOW);
+uint16_t kColorTagAltitude = hex2rgb565(COLOR_BLUE);
+uint16_t kColorRunway = hex2rgb565(COLOR_OVERLAY);
+uint16_t kColorRunwayLabel = hex2rgb565(COLOR_TEXT);
 
 }  // namespace radar
+
+void updateThemeColors() {
+    radar::kColorBackground = radar::hex2rgb565(COLOR_MANTLE);
+    radar::kColorGrid = radar::hex2rgb565(COLOR_OVERLAY);
+    radar::kColorLabel = radar::hex2rgb565(COLOR_TEXT);
+    radar::kColorCenter = radar::hex2rgb565(COLOR_TEXT);
+    radar::kColorAircraft = radar::hex2rgb565(COLOR_RED);
+    radar::kColorMilitary = radar::hex2rgb565(COLOR_PEACH);
+    radar::kColorHelicopter = radar::hex2rgb565(COLOR_BLUE);
+    radar::kColorTrackVector = radar::hex2rgb565(COLOR_MAUVE);
+    radar::kColorTagType = radar::hex2rgb565(COLOR_YELLOW);
+    radar::kColorTagAltitude = radar::hex2rgb565(COLOR_BLUE);
+    radar::kColorRunway = radar::hex2rgb565(COLOR_OVERLAY);
+    radar::kColorRunwayLabel = radar::hex2rgb565(COLOR_TEXT);
+}
 
 namespace {
 

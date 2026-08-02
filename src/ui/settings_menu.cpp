@@ -4,6 +4,7 @@
 #include "hardware/display.h"
 #include "ui/radar_display.h"
 #include "catppuccin.h"
+#include <Preferences.h>
 
 extern LGFX tft;
 
@@ -22,6 +23,9 @@ static bool s_show_radar_sweep = true;
 static bool s_auto_dimming = false;
 static int s_max_altitude = 50000;
 static int s_sweep_speed = 6000;
+static Preferences s_prefs;
+static int s_theme_flavor = CATPPUCCIN_MOCHA;
+static bool s_theme_changed = false;
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t* buf1 = nullptr;
 static lv_obj_t* settings_screen = nullptr;
@@ -106,13 +110,13 @@ static lv_obj_t* create_toggle_row(lv_obj_t * parent, const char * text, bool in
     lv_obj_set_size(row, LV_PCT(100), 40);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).mantle), 0);
+    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(s_theme_flavor).mantle), 0);
     lv_obj_set_style_border_width(row, 0, 0);
     lv_obj_set_style_pad_all(row, 10, 0);
 
     lv_obj_t * lbl = lv_label_create(row);
     lv_label_set_text(lbl, text);
-    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
 
     lv_obj_t * sw = lv_switch_create(row);
     if (initial_state) {
@@ -127,7 +131,7 @@ static lv_obj_t* create_slider_row(lv_obj_t * parent, const char * text, int min
     lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(row, LV_PCT(100), 70);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).mantle), 0);
+    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(s_theme_flavor).mantle), 0);
     lv_obj_set_style_border_width(row, 0, 0);
     lv_obj_set_style_pad_all(row, 10, 0);
 
@@ -141,11 +145,11 @@ static lv_obj_t* create_slider_row(lv_obj_t * parent, const char * text, int min
 
     lv_obj_t * lbl = lv_label_create(header);
     lv_label_set_text(lbl, text);
-    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
     
     lv_obj_t * val_lbl = lv_label_create(header);
     lv_label_set_text_fmt(val_lbl, "%d %s", initial_val, unit);
-    lv_obj_set_style_text_color(val_lbl, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).blue), 0);
+    lv_obj_set_style_text_color(val_lbl, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
 
     lv_obj_t * slider = lv_slider_create(row);
     lv_slider_set_range(slider, min_val, max_val);
@@ -190,19 +194,84 @@ static void tz_btn_event_cb(lv_event_t * e) {
     lv_label_set_text(tz_val_label, tz_presets[s_tz_idx].label);
 }
 
+static const char* theme_names[] = {"Mocha", "Macchiato", "Frappe", "Latte"};
+static lv_obj_t * theme_val_label = nullptr;
+
+static void theme_btn_event_cb(lv_event_t * e) {
+    intptr_t dir = (intptr_t)lv_event_get_user_data(e);
+    s_theme_flavor += dir;
+    if (s_theme_flavor < 0) s_theme_flavor = 3;
+    if (s_theme_flavor > 3) s_theme_flavor = 0;
+    
+    s_theme_changed = true;
+    lv_label_set_text(theme_val_label, theme_names[s_theme_flavor]);
+    s_prefs.putInt("theme", s_theme_flavor);
+    
+    // Changing the theme immediately requires refreshing all colors in the settings menu,
+    // which is complex. For now, it will apply when re-opening settings or main app.
+}
+
+static lv_obj_t* create_theme_row(lv_obj_t * parent) {
+    lv_obj_t * row = lv_obj_create(parent);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(row, LV_PCT(100), 75);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(s_theme_flavor).mantle), 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_all(row, 10, 0);
+
+    lv_obj_t * lbl = lv_label_create(row);
+    lv_label_set_text(lbl, "Theme Flavor");
+    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
+    lv_obj_set_width(lbl, LV_PCT(100));
+
+    lv_obj_t * controls = lv_obj_create(row);
+    lv_obj_set_size(controls, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(controls, 0, 0);
+    lv_obj_set_style_border_width(controls, 0, 0);
+    lv_obj_set_style_pad_all(controls, 0, 0);
+    lv_obj_set_flex_flow(controls, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(controls, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    lv_obj_t * btn_minus = lv_btn_create(controls);
+    lv_obj_set_size(btn_minus, 35, 30);
+    lv_obj_add_event_cb(btn_minus, theme_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)-1);
+    lv_obj_set_style_bg_color(btn_minus, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
+    lv_obj_t * lbl_minus = lv_label_create(btn_minus);
+    lv_label_set_text(lbl_minus, "<");
+    lv_obj_center(lbl_minus);
+
+    theme_val_label = lv_label_create(controls);
+    lv_label_set_text(theme_val_label, theme_names[s_theme_flavor]);
+    lv_obj_set_style_text_color(theme_val_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
+    lv_obj_set_flex_grow(theme_val_label, 1);
+    lv_obj_set_style_text_align(theme_val_label, LV_TEXT_ALIGN_CENTER, 0);
+
+    lv_obj_t * btn_plus = lv_btn_create(controls);
+    lv_obj_set_size(btn_plus, 35, 30);
+    lv_obj_add_event_cb(btn_plus, theme_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)1);
+    lv_obj_set_style_bg_color(btn_plus, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
+    lv_obj_t * lbl_plus = lv_label_create(btn_plus);
+    lv_label_set_text(lbl_plus, ">");
+    lv_obj_center(lbl_plus);
+
+    return row;
+}
+
 static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
     lv_obj_t * row = lv_obj_create(parent);
     lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(row, LV_PCT(100), 75);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).mantle), 0);
+    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(s_theme_flavor).mantle), 0);
     lv_obj_set_style_border_width(row, 0, 0);
     lv_obj_set_style_pad_all(row, 10, 0);
 
     lv_obj_t * lbl = lv_label_create(row);
     lv_label_set_text(lbl, "Timezone");
-    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
     lv_obj_set_width(lbl, LV_PCT(100));
 
     lv_obj_t * controls = lv_obj_create(row);
@@ -216,21 +285,21 @@ static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
     lv_obj_t * btn_minus = lv_btn_create(controls);
     lv_obj_set_size(btn_minus, 35, 30);
     lv_obj_add_event_cb(btn_minus, tz_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)-1);
-    lv_obj_set_style_bg_color(btn_minus, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).overlay), 0);
+    lv_obj_set_style_bg_color(btn_minus, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
     lv_obj_t * lbl_minus = lv_label_create(btn_minus);
     lv_label_set_text(lbl_minus, "<");
     lv_obj_center(lbl_minus);
 
     tz_val_label = lv_label_create(controls);
     lv_label_set_text(tz_val_label, tz_presets[s_tz_idx].label);
-    lv_obj_set_style_text_color(tz_val_label, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).blue), 0);
+    lv_obj_set_style_text_color(tz_val_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
     lv_obj_set_flex_grow(tz_val_label, 1);
     lv_obj_set_style_text_align(tz_val_label, LV_TEXT_ALIGN_CENTER, 0);
 
     lv_obj_t * btn_plus = lv_btn_create(controls);
     lv_obj_set_size(btn_plus, 35, 30);
     lv_obj_add_event_cb(btn_plus, tz_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)1);
-    lv_obj_set_style_bg_color(btn_plus, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).overlay), 0);
+    lv_obj_set_style_bg_color(btn_plus, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
     lv_obj_t * lbl_plus = lv_label_create(btn_plus);
     lv_label_set_text(lbl_plus, ">");
     lv_obj_center(lbl_plus);
@@ -239,6 +308,9 @@ static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
 }
 
 void setup() {
+    s_prefs.begin("settings", false);
+    s_theme_flavor = s_prefs.getInt("theme", CATPPUCCIN_MOCHA);
+
     lv_init();
     
     // Allocate draw buffer (reduce from 40 lines to 10 lines to save heap for SSL)
@@ -264,18 +336,18 @@ void setup() {
     
     // Build the UI
     settings_screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(settings_screen, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).base), 0);
+    lv_obj_set_style_bg_color(settings_screen, get_lv_color(getCatppuccinFlavor(s_theme_flavor).base), 0);
     
     lv_obj_t * title = lv_label_create(settings_screen);
     lv_label_set_text(title, "Settings");
-    lv_obj_set_style_text_color(title, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+    lv_obj_set_style_text_color(title, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
     
     lv_obj_t * list = lv_obj_create(settings_screen);
     lv_obj_set_size(list, LV_PCT(95), LV_PCT(70));
     lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 50);
     lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_bg_color(list, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).base), 0);
+    lv_obj_set_style_bg_color(list, get_lv_color(getCatppuccinFlavor(s_theme_flavor).base), 0);
     lv_obj_set_style_border_width(list, 0, 0);
     lv_obj_set_style_pad_all(list, 5, 0);
     lv_obj_set_style_pad_row(list, 10, 0);
@@ -292,17 +364,18 @@ void setup() {
     create_slider_row(list, "Max Alt", 0, 50000, s_max_altitude, "ft", max_altitude_slider_event_cb);
     create_slider_row(list, "Sweep Speed", 1000, 15000, s_sweep_speed, "ms", sweep_speed_slider_event_cb);
     create_timezone_row(list);
+    create_theme_row(list);
     
     // Close button
     lv_obj_t * close_btn = lv_btn_create(settings_screen);
     lv_obj_set_size(close_btn, 100, 40);
     lv_obj_align(close_btn, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_event_cb(close_btn, close_btn_event_handler, LV_EVENT_ALL, NULL);
-    lv_obj_set_style_bg_color(close_btn, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).blue), 0);
+    lv_obj_set_style_bg_color(close_btn, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
     
     lv_obj_t * close_label = lv_label_create(close_btn);
     lv_label_set_text(close_label, "Close");
-    lv_obj_set_style_text_color(close_label, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).crust), 0);
+    lv_obj_set_style_text_color(close_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).crust), 0);
     lv_obj_center(close_label);
     
     last_tick_millis = millis();
@@ -328,7 +401,9 @@ void show() {
 void hide() {
     s_visible = false;
     // We clear the screen completely so LovyanGFX can draw the radar over it again
-    tft.fillScreen(tft.color565(30, 30, 46)); // Mocha base
+    const CatppuccinColors& flavor = getCatppuccinFlavor(s_theme_flavor);
+    uint32_t mantle = flavor.mantle;
+    tft.fillScreen(tft.color565((mantle >> 16) & 0xFF, (mantle >> 8) & 0xFF, mantle & 0xFF));
     ui::radarDisplayRefreshAircraft(); // Force redraw of the bottom details panel
 }
 
@@ -344,5 +419,18 @@ int getSweepRotationSpeedMs() { return s_sweep_speed; }
 bool isTimezoneChanged() { return s_tz_changed; }
 void clearTimezoneChanged() { s_tz_changed = false; }
 const char* getTimezoneStr() { return tz_presets[s_tz_idx].value; }
+
+int getThemeFlavor() { return s_theme_flavor; }
+void setThemeFlavor(int flavor) {
+    if (flavor >= 0 && flavor <= 3) {
+        if (s_theme_flavor != flavor) {
+            s_theme_flavor = flavor;
+            s_prefs.putInt("theme", s_theme_flavor);
+            s_theme_changed = true;
+        }
+    }
+}
+bool isThemeChanged() { return s_theme_changed; }
+void clearThemeChanged() { s_theme_changed = false; }
 
 } // namespace ui::settings

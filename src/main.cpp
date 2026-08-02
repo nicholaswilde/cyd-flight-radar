@@ -172,6 +172,7 @@ void setup() {
   ui::radar::rangeInit();
 
   ui::settings::setup();
+  ui::updateThemeColors();
 
   wifiManager.begin();
   if (wifiManager.getState() == WIFI_STATE_CONNECTING || wifiManager.getState() == WIFI_STATE_DISCONNECTED) {
@@ -190,6 +191,14 @@ void loop() {
   if (ui::settings::isTimezoneChanged()) {
     ui::settings::clearTimezoneChanged();
     configTzTime(ui::settings::getTimezoneStr(), config::kNtpServer);
+  }
+
+  if (ui::settings::isThemeChanged()) {
+    ui::settings::clearThemeChanged();
+    ui::updateThemeColors();
+    if (g_radar_visible) {
+      ui::radarDisplayDraw();
+    }
   }
 
   if (current_state != g_last_wifi_state) {
