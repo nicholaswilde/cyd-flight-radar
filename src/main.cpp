@@ -40,18 +40,26 @@ void showRadarIfConnected() {
 void updateBrightness() {
   if (!g_screen_on) return;
 
+  static uint8_t s_current_brightness = 255;
   uint8_t target_brightness = 255;
+
   if (ui::settings::isAutoDimmingEnabled()) {
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 0)) { // 0 means do not block/wait
-      // Dim between 8 PM (20:00) and 6 AM (06:00)
-      if (timeinfo.tm_hour >= 20 || timeinfo.tm_hour < 6) {
-        target_brightness = 30; // Dim level
+    static unsigned long s_last_time_check = 0;
+    static struct tm s_timeinfo;
+    static bool s_time_valid = false;
+
+    if (millis() - s_last_time_check > 5000) {
+      s_last_time_check = millis();
+      s_time_valid = getLocalTime(&s_timeinfo, 0);
+    }
+
+    if (s_time_valid) {
+      if (s_timeinfo.tm_hour >= 20 || s_timeinfo.tm_hour < 6) {
+        target_brightness = 100; // Dim level
       }
     }
   }
 
-  static uint8_t s_current_brightness = 255;
   if (s_current_brightness != target_brightness) {
     s_current_brightness = target_brightness;
     tft.setBrightness(s_current_brightness);
