@@ -27,7 +27,10 @@ static uint16_t hex2rgb565(uint32_t hex) {
     uint8_t r = (hex >> 16) & 0xFF;
     uint8_t g = (hex >> 8) & 0xFF;
     uint8_t b = hex & 0xFF;
-    return lgfx::color565(r, g, b);
+    if (config::kDisplayRgbOrder) {
+        return tft.color565(b, g, r);
+    }
+    return tft.color565(r, g, b);
 }
 
 uint16_t kColorBackground = hex2rgb565(COLOR_MANTLE);
@@ -203,37 +206,7 @@ void initTagLabelMetrics() {
 }
 
 void initPalette() {
-  radar::kColorBackground = tft.color565(radar::kBgR, radar::kBgG, radar::kBgB);
-  radar::kColorGrid = tft.color565(radar::kGridR, radar::kGridG, radar::kGridB);
-  // Catppuccin Mocha Text: #cdd6f4 (205, 214, 244)
-  radar::kColorLabel = tft.color565(205, 214, 244);
-  radar::kColorCenter = tft.color565(205, 214, 244);
-  // GC9A01 BGR panel: swap R/B in color565 so logical red renders red on screen.
-  if (config::kDisplayRgbOrder) {
-    radar::kColorAircraft =
-        tft.color565(radar::kAircraftB, radar::kAircraftG, radar::kAircraftR);
-    radar::kColorMilitary =
-        tft.color565(radar::kMilitaryB, radar::kMilitaryG, radar::kMilitaryR);
-    radar::kColorHelicopter =
-        tft.color565(radar::kHeliB, radar::kHeliG, radar::kHeliR);
-  } else {
-    radar::kColorAircraft =
-        tft.color565(radar::kAircraftR, radar::kAircraftG, radar::kAircraftB);
-    radar::kColorMilitary =
-        tft.color565(radar::kMilitaryR, radar::kMilitaryG, radar::kMilitaryB);
-    radar::kColorHelicopter =
-        tft.color565(radar::kHeliR, radar::kHeliG, radar::kHeliB);
-  }
-  radar::kColorTrackVector =
-      tft.color565(radar::kTrackR, radar::kTrackG, radar::kTrackB);
-  radar::kColorTagType =
-      tft.color565(radar::kTagTypeR, radar::kTagTypeG, radar::kTagTypeB);
-  radar::kColorTagAltitude =
-      tft.color565(radar::kTagAltR, radar::kTagAltG, radar::kTagAltB);
-  radar::kColorRunway =
-      tft.color565(radar::kRunwayR, radar::kRunwayG, radar::kRunwayB);
-  radar::kColorRunwayLabel = tft.color565(radar::kRunwayLabelR, radar::kRunwayLabelG,
-                                          radar::kRunwayLabelB);
+  updateThemeColors();
 }
 
 constexpr float kKmPerDeg = 111.0f;
@@ -776,12 +749,25 @@ void drawRadarSweep(lgfx::LovyanGFX& gfx) {
     const int ty = cy - static_cast<int>(lroundf(cosf(trail_angle_rad) * r));
     
     // Blend from background to green
+    uint32_t bg_hex = COLOR_MANTLE;
+    uint32_t fg_hex = COLOR_GREEN;
+    uint8_t bg_r = (bg_hex >> 16) & 0xFF;
+    uint8_t bg_g = (bg_hex >> 8) & 0xFF;
+    uint8_t bg_b = bg_hex & 0xFF;
+    uint8_t fg_r = (fg_hex >> 16) & 0xFF;
+    uint8_t fg_g = (fg_hex >> 8) & 0xFF;
+    uint8_t fg_b = fg_hex & 0xFF;
+
     const float t = 1.0f - (static_cast<float>(i) / 20.0f);
-    const uint8_t red = static_cast<uint8_t>(radar::kBgR + (166 - radar::kBgR) * t);
-    const uint8_t green = static_cast<uint8_t>(radar::kBgG + (227 - radar::kBgG) * t);
-    const uint8_t blue = static_cast<uint8_t>(radar::kBgB + (161 - radar::kBgB) * t);
+    const uint8_t red = static_cast<uint8_t>(bg_r + (fg_r - bg_r) * t);
+    const uint8_t green = static_cast<uint8_t>(bg_g + (fg_g - bg_g) * t);
+    const uint8_t blue = static_cast<uint8_t>(bg_b + (fg_b - bg_b) * t);
     
-    gfx.drawLine(cx, cy, tx, ty, lgfx::color565(red, green, blue));
+    if (config::kDisplayRgbOrder) {
+        gfx.drawLine(cx, cy, tx, ty, tft.color565(blue, green, red));
+    } else {
+        gfx.drawLine(cx, cy, tx, ty, tft.color565(red, green, blue));
+    }
   }
 }
 
