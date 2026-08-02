@@ -156,6 +156,88 @@ static lv_obj_t* create_slider_row(lv_obj_t * parent, const char * text, int min
     return row;
 }
 
+struct TimezonePreset {
+    const char* label;
+    const char* value;
+};
+static const TimezonePreset tz_presets[] = {
+    {"UTC", "UTC0"},
+    {"London", "GMT0BST,M3.5.0/1,M10.5.0"},
+    {"CET", "CET-1CEST,M3.5.0,M10.5.0/3"},
+    {"EET", "EET-2EEST,M3.5.0/3,M10.5.0/4"},
+    {"US East", "EST5EDT,M3.2.0,M11.1.0"},
+    {"US Central", "CST6CDT,M3.2.0,M11.1.0"},
+    {"US Mount.", "MST7MDT,M3.2.0,M11.1.0"},
+    {"US Pacific", "PST8PDT,M3.2.0,M11.1.0"},
+    {"US Alaska", "AKST9AKDT,M3.2.0,M11.1.0"},
+    {"US Hawaii", "HST10"},
+    {"AU East", "AEST-10AEDT,M10.1.0,M4.1.0/3"},
+    {"AU Central", "ACST-9:30ACDT,M10.1.0,M4.1.0/3"},
+    {"AU West", "AWST-8"}
+};
+static const int num_tz_presets = sizeof(tz_presets)/sizeof(tz_presets[0]);
+static int s_tz_idx = 0;
+static lv_obj_t * tz_val_label = nullptr;
+static bool s_tz_changed = false;
+
+static void tz_btn_event_cb(lv_event_t * e) {
+    intptr_t dir = (intptr_t)lv_event_get_user_data(e);
+    s_tz_idx += dir;
+    if (s_tz_idx < 0) s_tz_idx = num_tz_presets - 1;
+    if (s_tz_idx >= num_tz_presets) s_tz_idx = 0;
+    
+    s_tz_changed = true;
+    lv_label_set_text(tz_val_label, tz_presets[s_tz_idx].label);
+}
+
+static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
+    lv_obj_t * row = lv_obj_create(parent);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(row, LV_PCT(100), 50);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).mantle), 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_all(row, 10, 0);
+
+    lv_obj_t * lbl = lv_label_create(row);
+    lv_label_set_text(lbl, "Timezone");
+    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).text), 0);
+
+    lv_obj_t * controls = lv_obj_create(row);
+    lv_obj_set_size(controls, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(controls, 0, 0);
+    lv_obj_set_style_border_width(controls, 0, 0);
+    lv_obj_set_style_pad_all(controls, 0, 0);
+    lv_obj_set_flex_flow(controls, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(controls, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(controls, 10, 0);
+
+    lv_obj_t * btn_minus = lv_btn_create(controls);
+    lv_obj_set_size(btn_minus, 30, 30);
+    lv_obj_add_event_cb(btn_minus, tz_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)-1);
+    lv_obj_set_style_bg_color(btn_minus, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).overlay), 0);
+    lv_obj_t * lbl_minus = lv_label_create(btn_minus);
+    lv_label_set_text(lbl_minus, "<");
+    lv_obj_center(lbl_minus);
+
+    tz_val_label = lv_label_create(controls);
+    lv_label_set_text(tz_val_label, tz_presets[s_tz_idx].label);
+    lv_obj_set_style_text_color(tz_val_label, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).blue), 0);
+    lv_obj_set_width(tz_val_label, 80);
+    lv_obj_set_style_text_align(tz_val_label, LV_TEXT_ALIGN_CENTER, 0);
+
+    lv_obj_t * btn_plus = lv_btn_create(controls);
+    lv_obj_set_size(btn_plus, 30, 30);
+    lv_obj_add_event_cb(btn_plus, tz_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)1);
+    lv_obj_set_style_bg_color(btn_plus, get_lv_color(getCatppuccinFlavor(CATPPUCCIN_MOCHA).overlay), 0);
+    lv_obj_t * lbl_plus = lv_label_create(btn_plus);
+    lv_label_set_text(lbl_plus, ">");
+    lv_obj_center(lbl_plus);
+
+    return row;
+}
+
 void setup() {
     lv_init();
     
@@ -209,7 +291,7 @@ void setup() {
     
     create_slider_row(list, "Max Alt", 0, 50000, s_max_altitude, "ft", max_altitude_slider_event_cb);
     create_slider_row(list, "Sweep Speed", 1000, 15000, s_sweep_speed, "ms", sweep_speed_slider_event_cb);
-
+    create_timezone_row(list);
     
     // Close button
     lv_obj_t * close_btn = lv_btn_create(settings_screen);
@@ -250,19 +332,17 @@ void hide() {
     ui::radarDisplayRefreshAircraft(); // Force redraw of the bottom details panel
 }
 
-bool isVisible() {
-    return s_visible;
-}
-
-bool isAirportsEnabled() {
-    return s_show_airports;
-}
-
+bool isVisible() { return s_visible; }
+bool isAirportsEnabled() { return s_show_airports; }
 bool isMediumAirportsEnabled() { return s_show_medium_airports; }
 bool isGroundAircraftEnabled() { return s_show_ground_aircraft; }
 bool isRadarSweepEnabled() { return s_show_radar_sweep; }
 bool isAutoDimmingEnabled() { return s_auto_dimming; }
 int getMaxAltitudeFilter() { return s_max_altitude; }
 int getSweepRotationSpeedMs() { return s_sweep_speed; }
+
+bool isTimezoneChanged() { return s_tz_changed; }
+void clearTimezoneChanged() { s_tz_changed = false; }
+const char* getTimezoneStr() { return tz_presets[s_tz_idx].value; }
 
 } // namespace ui::settings

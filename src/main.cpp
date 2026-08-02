@@ -187,9 +187,14 @@ void loop() {
 
   WifiState current_state = wifiManager.getState();
   
+  if (ui::settings::isTimezoneChanged()) {
+    ui::settings::clearTimezoneChanged();
+    configTzTime(ui::settings::getTimezoneStr(), config::kNtpServer);
+  }
+
   if (current_state != g_last_wifi_state) {
     if (current_state == WIFI_STATE_CONNECTED) {
-      configTzTime(config::kTimezoneDefault, config::kNtpServer);
+      configTzTime(ui::settings::getTimezoneStr(), config::kNtpServer);
       showRadarIfConnected();
     } else if (current_state == WIFI_STATE_AP_MODE) {
       // In AP Mode

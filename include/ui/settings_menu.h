@@ -17,6 +17,9 @@ bool isRadarSweepEnabled();
 bool isAutoDimmingEnabled();
 int getMaxAltitudeFilter();
 int getSweepRotationSpeedMs();
+bool isTimezoneChanged();
+void clearTimezoneChanged();
+const char* getTimezoneStr();
 
 } // namespace ui::settings
 
