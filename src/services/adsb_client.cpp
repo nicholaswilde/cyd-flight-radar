@@ -28,72 +28,6 @@ WiFiClientSecure s_client;
 HTTPClient s_http;
 bool s_tls_configured = false;
 
-void pollNetwork() {
-  // In this project, if we have a WiFi poll function, we could call it.
-  // For now, this is just a stub to prevent blocking too long.
-  delay(1);
-}
-
-class PollingStream : public Stream {
- public:
-  explicit PollingStream(WiFiClient* inner) : inner_(inner) {}
-
-  int available() override {
-    return (buf_pos_ < buf_len_) ? (buf_len_ - buf_pos_) : refill();
-  }
-
-  int read() override {
-    if (buf_pos_ >= buf_len_ && refill() <= 0) return -1;
-    return buf_[buf_pos_++];
-  }
-
-  int peek() override {
-    if (buf_pos_ >= buf_len_ && refill() <= 0) return -1;
-    return buf_[buf_pos_];
-  }
-
-  size_t readBytes(uint8_t* out, size_t len) override {
-    size_t total = 0;
-    while (total < len) {
-      if (buf_pos_ >= buf_len_ && refill() <= 0) break;
-      size_t avail = buf_len_ - buf_pos_;
-      size_t take = avail < (len - total) ? avail : (len - total);
-      memcpy(out + total, buf_ + buf_pos_, take);
-      buf_pos_ += take;
-      total += take;
-    }
-    return total;
-  }
-
-  size_t write(uint8_t) override { return 0; }
-
- private:
-  int refill() {
-    const unsigned long deadline = millis() + 5000;
-    while (millis() < deadline) {
-      pollNetwork();
-      int avail = inner_->available();
-      if (avail > 0) {
-        size_t to_read = avail > sizeof(buf_) ? sizeof(buf_) : avail;
-        buf_len_ = inner_->readBytes(buf_, to_read);
-        buf_pos_ = 0;
-        return buf_len_;
-      }
-      if (!inner_->connected() && inner_->available() <= 0) {
-        break; // Stream ended
-      }
-      delay(1);
-    }
-    buf_len_ = 0;
-    buf_pos_ = 0;
-    return 0;
-  }
-
-  WiFiClient* inner_;
-  uint8_t buf_[256];
-  size_t buf_pos_ = 0;
-  size_t buf_len_ = 0;
-};
 
 
 int performGetWithPoll(HTTPClient& http) {
@@ -111,44 +45,6 @@ int performGetWithPoll(HTTPClient& http) {
     delay(500);
   }
   return HTTPC_ERROR_READ_TIMEOUT;
-}
-
-bool readResponseBodyWithPoll(HTTPClient& http, String& payload) {
-  WiFiClient* stream = http.getStreamPtr();
-  if (stream == nullptr) {
-    return false;
-  }
-
-  const int content_length = http.getSize();
-  if (content_length > 0) {
-    payload.reserve(static_cast<unsigned>(content_length + 1));
-  }
-
-  uint8_t buffer[512];
-  const unsigned long deadline = millis() + kRequestTimeoutMs;
-  while (millis() < deadline) {
-    const int available = stream->available();
-    if (available > 0) {
-      const int to_read =
-          available > static_cast<int>(sizeof(buffer)) ? static_cast<int>(sizeof(buffer))
-                                                       : available;
-      const int read_bytes = stream->readBytes(buffer, to_read);
-      if (read_bytes > 0) {
-        payload.concat(reinterpret_cast<const char*>(buffer),
-                       static_cast<unsigned>(read_bytes));
-      }
-    }
-    if (content_length > 0 &&
-        static_cast<int>(payload.length()) >= content_length) {
-      break;
-    }
-    if (!http.connected() && stream->available() <= 0) {
-      break;
-    }
-    delay(1);
-  }
-
-  return payload.length() > 0;
 }
 
 float kmToNauticalMiles(float km) { return km / kKmPerNm; }
@@ -353,13 +249,13 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     return false;
   }
 
-  String payload;
-  if (!readResponseBodyWithPoll(s_http, payload)) {
-    Serial.println("adsb: failed to read response body");
-    s_http.end();
+  String payload = s_http.getString();
+  s_http.end();
+  
+  if (payload.isEmpty()) {
+    Serial.println("adsb: payload is empty");
     return false;
   }
-  s_http.end();
 
   JsonDocument doc;
   const DeserializationError err = deserializeJson(
