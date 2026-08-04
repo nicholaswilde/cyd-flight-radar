@@ -10,6 +10,19 @@
 #include "config.h"
 #include "hardware/display.h"
 #include "hardware/display_font.h"
+#include "ui/settings_menu.h"
+#include "catppuccin.h"
+
+static uint16_t hex2rgb565(uint32_t hex) {
+    uint8_t r = (hex >> 16) & 0xFF;
+    uint8_t g = (hex >> 8) & 0xFF;
+    uint8_t b = hex & 0xFF;
+    if (config::kDisplayRgbOrder) {
+        return tft.color565(b, g, r);
+    }
+    return tft.color565(r, g, b);
+}
+
 
 
 
@@ -101,7 +114,7 @@ void drawTextBlock(uint16_t bg, const TextLine* lines, size_t count) {
 
 void drawStatusAppVersion() {
   tft.setTextDatum(textdatum_t::bottom_right);
-  tft.setTextColor(lgfx::color565(120, 120, 120), config::kColorBlack);
+  tft.setTextColor(hex2rgb565(COLOR_OVERLAY), hex2rgb565(COLOR_BASE));
   if (displayFontIsSmooth()) {
     displayFontSetSmoothSize(tft, 0.60f);
   } else {
@@ -141,10 +154,10 @@ void fitSsidLine() {
 }
 
 void drawConnectingText() {
-  tft.fillScreen(config::kColorBlack);
+  tft.fillScreen(hex2rgb565(COLOR_BASE));
 
   tft.setTextDatum(textdatum_t::middle_center);
-  tft.setTextColor(config::kTextOnBlack, config::kColorBlack);
+  tft.setTextColor(hex2rgb565(COLOR_TEXT), hex2rgb565(COLOR_BASE));
 
   applyConnectingDetailStyle();
   const int detail_h = tft.fontHeight();
@@ -152,7 +165,7 @@ void drawConnectingText() {
   const int block_top = (config::kDisplayHeight - total_h) / 2;
   constexpr int kPanelPadY = 8;
   tft.fillRect(kCenterX - kConnectingTextMaxWidthPx / 2, block_top - kPanelPadY,
-               kConnectingTextMaxWidthPx, total_h + kPanelPadY * 2, config::kColorBlack);
+               kConnectingTextMaxWidthPx, total_h + kPanelPadY * 2, hex2rgb565(COLOR_BASE));
 
   int y = block_top;
   tft.drawString("Connecting to", kCenterX, y + detail_h / 2);
@@ -170,7 +183,7 @@ void eraseSpinnerDots() {
       continue;
     }
     tft.fillCircle(s_spinner_dots[i].x, s_spinner_dots[i].y, kSpinnerEraseRadius,
-                   config::kColorBlack);
+                   hex2rgb565(COLOR_BASE));
     s_spinner_dots[i].drawn = false;
   }
 }
@@ -185,11 +198,22 @@ void drawSpinnerDots() {
     const int y = kCenterY + static_cast<int>(std::lround(std::sin(a) * kSpinnerRadius));
 
     const int fade = 255 - i * 22;
-    // Catppuccin Green: 166, 227, 161
-    const uint8_t r = (166 * fade) / 255;
-    const uint8_t g = (227 * fade) / 255;
-    const uint8_t b = (161 * fade) / 255;
-    const uint16_t color = tft.color565(r, g, b);
+    uint32_t theme_green = COLOR_GREEN;
+    uint8_t green_r = (theme_green >> 16) & 0xFF;
+    uint8_t green_g = (theme_green >> 8) & 0xFF;
+    uint8_t green_b = theme_green & 0xFF;
+
+    const uint8_t r = (green_r * fade) / 255;
+    const uint8_t g = (green_g * fade) / 255;
+    const uint8_t b = (green_b * fade) / 255;
+    
+    uint16_t color;
+    if (config::kDisplayRgbOrder) {
+        color = tft.color565(b, g, r);
+    } else {
+        color = tft.color565(r, g, b);
+    }
+    
     tft.fillSmoothCircle(x, y, kSpinnerDotRadius, color);
 
     s_spinner_dots[i].x = x;
@@ -228,37 +252,37 @@ void statusScreenConnectingTick() {
 
 void statusScreenPortal() {
   const TextLine lines[] = {
-      {"Wi-Fi setup", 1.15f, &kPortalGfxTitle, config::kColorMauve},
-      {"1. Join network:", 1.05f, &kPortalGfxBody, config::kTextOnBlack},
-      {config::kPortalApName, 1.12f, &kPortalGfxEmphasis, config::kColorBlue},
-      {"2. Open in browser:", 1.05f, &kPortalGfxBody, config::kTextOnBlack},
-      {config::kPortalHostUrl, 1.12f, &kPortalGfxEmphasis, config::kColorGreen},
-      {"or 192.168.4.1", 1.0f, &kPortalGfxBody, config::kColorGreen},
+      {"Wi-Fi setup", 1.15f, &kPortalGfxTitle, hex2rgb565(COLOR_MAUVE)},
+      {"1. Join network:", 1.05f, &kPortalGfxBody, hex2rgb565(COLOR_TEXT)},
+      {config::kPortalApName, 1.12f, &kPortalGfxEmphasis, hex2rgb565(COLOR_BLUE)},
+      {"2. Open in browser:", 1.05f, &kPortalGfxBody, hex2rgb565(COLOR_TEXT)},
+      {config::kPortalHostUrl, 1.12f, &kPortalGfxEmphasis, hex2rgb565(COLOR_GREEN)},
+      {"or 192.168.4.1", 1.0f, &kPortalGfxBody, hex2rgb565(COLOR_GREEN)},
   };
-  drawTextBlock(config::kColorBlack, lines,
+  drawTextBlock(hex2rgb565(COLOR_BASE), lines,
                 sizeof(lines) / sizeof(lines[0]));
   drawStatusAppVersion();
 }
 
 void statusScreenConnectFailed() {
   const TextLine lines[] = {
-      {"Could not connect", 1.15f, &kGfxTitle, config::kColorYellow},
-      {"Check Wi-Fi password", 1.0f, &kGfxBody, config::kTextOnBlack},
-      {"and signal strength.", 1.0f, &kGfxBody, config::kTextOnBlack},
-      {"Hold BOOT 3 sec", 1.0f, &kGfxBody, config::kTextOnBlack},
-      {"to reset Wi-Fi", 1.0f, &kGfxBody, config::kTextOnBlack},
+      {"Could not connect", 1.15f, &kGfxTitle, hex2rgb565(COLOR_YELLOW)},
+      {"Check Wi-Fi password", 1.0f, &kGfxBody, hex2rgb565(COLOR_TEXT)},
+      {"and signal strength.", 1.0f, &kGfxBody, hex2rgb565(COLOR_TEXT)},
+      {"Hold BOOT 3 sec", 1.0f, &kGfxBody, hex2rgb565(COLOR_TEXT)},
+      {"to reset Wi-Fi", 1.0f, &kGfxBody, hex2rgb565(COLOR_TEXT)},
   };
-  drawTextBlock(config::kColorBlack, lines,
+  drawTextBlock(hex2rgb565(COLOR_BASE), lines,
                 sizeof(lines) / sizeof(lines[0]));
   drawStatusAppVersion();
 }
 
 void statusScreenWifiReset() {
   const TextLine lines[] = {
-      {"Wi-Fi reset", 1.15f, &kPortalGfxTitle, config::kColorYellow},
-      {"Restarting...", 1.05f, &kPortalGfxBody, config::kTextOnBlack},
+      {"Wi-Fi reset", 1.15f, &kPortalGfxTitle, hex2rgb565(COLOR_YELLOW)},
+      {"Restarting...", 1.05f, &kPortalGfxBody, hex2rgb565(COLOR_TEXT)},
   };
-  drawTextBlock(config::kColorBlack, lines,
+  drawTextBlock(hex2rgb565(COLOR_BASE), lines,
                 sizeof(lines) / sizeof(lines[0]));
   drawStatusAppVersion();
 }
