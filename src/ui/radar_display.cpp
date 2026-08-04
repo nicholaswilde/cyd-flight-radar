@@ -33,7 +33,7 @@ static uint16_t hex2rgb565(uint32_t hex) {
     return tft.color565(r, g, b);
 }
 
-uint16_t kColorBackground = hex2rgb565(COLOR_MANTLE);
+uint16_t kColorBackground = hex2rgb565(COLOR_BASE);
 uint16_t kColorGrid = hex2rgb565(COLOR_OVERLAY);
 uint16_t kColorLabel = hex2rgb565(COLOR_TEXT);
 uint16_t kColorCenter = hex2rgb565(COLOR_TEXT);
@@ -49,7 +49,7 @@ uint16_t kColorRunwayLabel = hex2rgb565(COLOR_TEXT);
 }  // namespace radar
 
 void updateThemeColors() {
-    radar::kColorBackground = radar::hex2rgb565(COLOR_MANTLE);
+    radar::kColorBackground = radar::hex2rgb565(COLOR_BASE);
     radar::kColorGrid = radar::hex2rgb565(COLOR_OVERLAY);
     radar::kColorLabel = radar::hex2rgb565(COLOR_TEXT);
     radar::kColorCenter = radar::hex2rgb565(COLOR_TEXT);
