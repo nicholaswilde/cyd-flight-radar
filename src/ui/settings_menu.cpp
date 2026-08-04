@@ -4,6 +4,7 @@
 #include "hardware/display.h"
 #include "ui/radar_display.h"
 #include "catppuccin.h"
+#include "config.h"
 #include <Preferences.h>
 
 extern LGFX tft;
@@ -11,7 +12,13 @@ extern LGFX tft;
 namespace ui::settings {
 
 static lv_color_t get_lv_color(uint32_t hex) {
-    return lv_color_make((hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF);
+    uint8_t r = (hex >> 16) & 0xFF;
+    uint8_t g = (hex >> 8) & 0xFF;
+    uint8_t b = hex & 0xFF;
+    if (config::kDisplayRgbOrder) {
+        return lv_color_make(b, g, r);
+    }
+    return lv_color_make(r, g, b);
 }
 
 static bool s_visible = false;
@@ -199,10 +206,10 @@ static lv_obj_t * theme_val_label = nullptr;
 static void theme_btn_event_cb(lv_event_t * e) {
     intptr_t dir = (intptr_t)lv_event_get_user_data(e);
     s_theme_flavor += dir;
-    if (s_theme_flavor < 0) s_theme_flavor = 3;
-    if (s_theme_flavor > 3) s_theme_flavor = 0;
+    if (s_theme_flavor < 1) s_theme_flavor = 4;
+    if (s_theme_flavor > 4) s_theme_flavor = 1;
     
-    lv_label_set_text(theme_val_label, theme_names[s_theme_flavor]);
+    lv_label_set_text(theme_val_label, theme_names[s_theme_flavor - 1]);
     s_prefs.putInt("theme", s_theme_flavor);
     ui::updateThemeColors();
     
@@ -242,7 +249,7 @@ static lv_obj_t* create_theme_row(lv_obj_t * parent) {
     lv_obj_center(lbl_minus);
 
     theme_val_label = lv_label_create(controls);
-    lv_label_set_text(theme_val_label, theme_names[s_theme_flavor]);
+    lv_label_set_text(theme_val_label, theme_names[s_theme_flavor - 1]);
     lv_obj_set_style_text_color(theme_val_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
     lv_obj_set_flex_grow(theme_val_label, 1);
     lv_obj_set_style_text_align(theme_val_label, LV_TEXT_ALIGN_CENTER, 0);
@@ -340,7 +347,7 @@ static void build_ui() {
     
     // Close button
     lv_obj_t * close_btn = lv_btn_create(settings_screen);
-    lv_obj_set_size(close_btn, 100, 40);
+    lv_obj_set_size(close_btn, 100, 30);
     lv_obj_align(close_btn, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_add_event_cb(close_btn, close_btn_event_handler, LV_EVENT_ALL, NULL);
     lv_obj_set_style_bg_color(close_btn, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
@@ -354,6 +361,9 @@ static void build_ui() {
 void setup() {
     s_prefs.begin("settings", false);
     s_theme_flavor = s_prefs.getInt("theme", CATPPUCCIN_MOCHA);
+    if (s_theme_flavor < 1 || s_theme_flavor > 4) {
+        s_theme_flavor = CATPPUCCIN_MOCHA;
+    }
 
     lv_init();
     
@@ -414,8 +424,8 @@ void hide() {
     
     // We clear the screen completely so LovyanGFX can draw the radar over it again
     const CatppuccinColors& flavor = getCatppuccinFlavor(s_theme_flavor);
-    uint32_t mantle = flavor.mantle;
-    tft.fillScreen(tft.color565((mantle >> 16) & 0xFF, (mantle >> 8) & 0xFF, mantle & 0xFF));
+    uint32_t bg_color = flavor.base;
+    tft.fillScreen(tft.color565((bg_color >> 16) & 0xFF, (bg_color >> 8) & 0xFF, bg_color & 0xFF));
     ui::radarDisplayRefreshAircraft(); // Force redraw of the bottom details panel
 }
 
@@ -434,7 +444,7 @@ const char* getTimezoneStr() { return tz_presets[s_tz_idx].value; }
 
 int getThemeFlavor() { return s_theme_flavor; }
 void setThemeFlavor(int flavor) {
-    if (flavor >= 0 && flavor <= 3) {
+    if (flavor >= 1 && flavor <= 4) {
         if (s_theme_flavor != flavor) {
             s_theme_flavor = flavor;
             s_prefs.putInt("theme", s_theme_flavor);
