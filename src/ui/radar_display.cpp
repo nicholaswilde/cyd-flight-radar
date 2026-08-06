@@ -749,7 +749,7 @@ void drawRadarSweep(lgfx::LovyanGFX& gfx) {
     const int ty = cy - static_cast<int>(lroundf(cosf(trail_angle_rad) * r));
     
     // Blend from background to green
-    uint32_t bg_hex = COLOR_MANTLE;
+    uint32_t bg_hex = COLOR_BASE;
     uint32_t fg_hex = COLOR_GREEN;
     uint8_t bg_r = (bg_hex >> 16) & 0xFF;
     uint8_t bg_g = (bg_hex >> 8) & 0xFF;
@@ -785,9 +785,20 @@ void renderFrame() {
   tft.setTextDatum(textdatum_t::top_left);
 }
 
+uint16_t downsampleColor(uint16_t c) {
+  uint8_t r3 = (c >> 13) & 0x07;
+  uint8_t g3 = (c >> 8) & 0x07;
+  uint8_t b2 = (c >> 3) & 0x03;
+  uint16_t r5 = (r3 << 2) | (r3 >> 1);
+  uint16_t g6 = (g3 << 3) | (g3 << 1) | (g3 >> 2);
+  uint16_t b5 = (b2 << 3) | (b2 << 1) | (b2 >> 1);
+  return (r5 << 11) | (g6 << 5) | b5;
+}
+
 void drawAppVersion() {
   tft.setTextDatum(textdatum_t::bottom_right);
-  tft.setTextColor(lgfx::color565(120, 120, 120), radar::kColorBackground);
+  uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
+  tft.setTextColor(lgfx::color565(120, 120, 120), bg);
   displayFontEnsureLoaded(tft);
   if (displayFontIsSmooth()) {
     displayFontSetSmoothSize(tft, 0.60f);
@@ -808,7 +819,8 @@ void drawClock() {
   }
   
   tft.setTextDatum(textdatum_t::bottom_left);
-  tft.setTextColor(lgfx::color565(120, 120, 120), radar::kColorBackground);
+  uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
+  tft.setTextColor(lgfx::color565(120, 120, 120), bg);
   displayFontEnsureLoaded(tft);
   if (displayFontIsSmooth()) {
     displayFontSetSmoothSize(tft, 0.60f);
@@ -819,14 +831,15 @@ void drawClock() {
 }
 
 void drawDetailsPanel() {
-  tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, radar::kColorBackground);
+  uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
+  tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, bg);
   tft.drawFastHLine(0, radar::kSize, 240, radar::kColorGrid);
   drawAppVersion();
   drawClock();
 
   if (s_selected_hex[0] == '\0') {
     tft.setTextDatum(textdatum_t::middle_center);
-    tft.setTextColor(radar::kColorLabel, radar::kColorBackground);
+    tft.setTextColor(radar::kColorLabel, bg);
     displayFontEnsureLoaded(tft);
     if (displayFontIsSmooth()) {
       displayFontSetSmoothSize(tft, 1.2f);
@@ -861,7 +874,7 @@ void drawDetailsPanel() {
   int ly = radar::kSize + 4;
   char buf[64];
   
-  tft.setTextColor(radar::kColorLabel, radar::kColorBackground);
+  tft.setTextColor(radar::kColorLabel, bg);
   if (ac->reg[0] != '\0') {
     snprintf(buf, sizeof(buf), "%s (%s)%s", ac->callsign, ac->reg, ac->is_military ? " [MIL]" : "");
   } else {
@@ -874,7 +887,7 @@ void drawDetailsPanel() {
   tft.drawString(buf, 4, ly);
   ly += lh;
   
-  tft.setTextColor(radar::kColorTagType, radar::kColorBackground);
+  tft.setTextColor(radar::kColorTagType, bg);
   if (ac->desc[0] != '\0') {
     tft.drawString(ac->desc, 4, ly);
   } else if (ac->type[0] != '\0') {
@@ -884,7 +897,7 @@ void drawDetailsPanel() {
   }
   ly += lh;
   
-  tft.setTextColor(radar::kColorTagAltitude, radar::kColorBackground);
+  tft.setTextColor(radar::kColorTagAltitude, bg);
   snprintf(buf, sizeof(buf), "%s | %.0f kts", ac->alt, ac->gs_knots);
   tft.drawString(buf, 4, ly);
   ly += lh;
