@@ -36,7 +36,8 @@ Currently configured and tested on:
 * `cyd_35c`: Standard 3.5" ESP32 CYD with capacitive touch (GT911).
 
 ## 🙌 Credits
-This project is heavily based on and ported from [MatixYo's ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar), which was originally designed for the ESP32-C3 Super Mini and round GC9A01 displays. It has been adapted here to run on various ESP32 Cheap Yellow Display (CYD) boards with touchscreen support.
+* This project is heavily based on and ported from [MatixYo's ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar), which was originally designed for the ESP32-C3 Super Mini and round GC9A01 displays. It has been adapted here to run on various ESP32 Cheap Yellow Display (CYD) boards with touchscreen support.
+* Additional inspiration and ideas drawn from Adam Conway's [XDA Developers article on building an ESP32 Plane Radar](https://www.xda-developers.com/built-own-plane-radar-esp32-display-havent-opened-flightradar24/).
 
 ## :balance_scale: License
 
