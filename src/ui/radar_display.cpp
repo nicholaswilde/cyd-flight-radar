@@ -832,7 +832,7 @@ void drawAppVersion() {
   tft.setTextColor(lgfx::color565(120, 120, 120), bg);
   displayFontEnsureLoaded(tft);
   if (displayFontIsSmooth()) {
-    displayFontSetSmoothSize(tft, 0.60f);
+    displayFontSetSmoothSize(tft, 0.80f);
   } else {
     displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
   }
@@ -854,7 +854,7 @@ void drawClock() {
   tft.setTextColor(lgfx::color565(120, 120, 120), bg);
   displayFontEnsureLoaded(tft);
   if (displayFontIsSmooth()) {
-    displayFontSetSmoothSize(tft, 0.60f);
+    displayFontSetSmoothSize(tft, 0.80f);
   } else {
     displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
   }
@@ -867,7 +867,7 @@ void drawAircraftCount() {
   tft.setTextColor(lgfx::color565(120, 120, 120), bg);
   displayFontEnsureLoaded(tft);
   if (displayFontIsSmooth()) {
-    displayFontSetSmoothSize(tft, 0.60f);
+    displayFontSetSmoothSize(tft, 0.80f);
   } else {
     displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
   }
