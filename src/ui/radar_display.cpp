@@ -961,7 +961,7 @@ void drawDetailsPanel() {
   if (!ui::radar::useMiles()) {
     snprintf(buf, sizeof(buf), "%s | %.0f km/h", ac->alt, ac->gs_knots * 1.852f);
   } else {
-    snprintf(buf, sizeof(buf), "%s | %.0f kts", ac->alt, ac->gs_knots);
+    snprintf(buf, sizeof(buf), "%s | %.0f mph", ac->alt, ac->gs_knots * 1.150779f);
   }
   tft.drawString(buf, 4, ly);
   ly += lh;
