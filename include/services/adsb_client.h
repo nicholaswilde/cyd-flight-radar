@@ -22,7 +22,7 @@ struct Aircraft {
   struct {
     float lat;
     float lon;
-  } trail[16];
+  } trail[6];
   size_t trail_size;
   size_t trail_head;
 };

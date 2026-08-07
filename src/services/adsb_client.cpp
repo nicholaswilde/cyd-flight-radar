@@ -420,12 +420,12 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
       }
     }
     
-    size_t last_idx = (target_ac->trail_head + 15) % 16;
+    size_t last_idx = (target_ac->trail_head + 5) % 6;
     if (target_ac->trail_size == 0 || target_ac->trail[last_idx].lat != p_lat || target_ac->trail[last_idx].lon != p_lon) {
       target_ac->trail[target_ac->trail_head].lat = p_lat;
       target_ac->trail[target_ac->trail_head].lon = p_lon;
-      target_ac->trail_head = (target_ac->trail_head + 1) % 16;
-      if (target_ac->trail_size < 16) target_ac->trail_size++;
+      target_ac->trail_head = (target_ac->trail_head + 1) % 6;
+      if (target_ac->trail_size < 6) target_ac->trail_size++;
     }
   }
   

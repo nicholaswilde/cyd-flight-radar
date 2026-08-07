@@ -404,7 +404,7 @@ void drawFlightTrail(int cx, int cy, const services::adsb::Aircraft& plane) {
   int last_x = cx;
   int last_y = cy;
   for (size_t i = 0; i < plane.trail_size; ++i) {
-    size_t idx = (plane.trail_head + 16 - 1 - i) % 16;
+    size_t idx = (plane.trail_head + 6 - 1 - i) % 6;
     int px = 0;
     int py = 0;
     latLonToScreen(plane.trail[idx].lat, plane.trail[idx].lon, &px, &py);
