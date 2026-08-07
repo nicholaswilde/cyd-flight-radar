@@ -5,6 +5,17 @@ vars:
   PIO_ENV: '{{.PIO_ENV | default "cyd_28r"}}'
 
 tasks:
+  init:
+    desc: Initialize project environment file and secrets
+    status:
+      - test -f .env
+      - test -f config/secrets.h
+    preconditions:
+      - test -f .env.example
+      - test -f config/secrets.h.example
+    cmds:
+      - cp .env.example .env
+      - cp config/secrets.h.example config/secrets.h
   eau:
     desc: Erase and upload
     cmds:

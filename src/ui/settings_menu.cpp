@@ -216,6 +216,76 @@ static void tz_btn_event_cb(lv_event_t * e) {
     lv_label_set_text(tz_val_label, tz_presets[s_tz_idx].label);
 }
 
+static lv_obj_t * range_val_label = nullptr;
+
+static void update_range_label() {
+    char range_label[12];
+    ui::radar::formatCurrentRing3Label(range_label, sizeof(range_label));
+    lv_label_set_text(range_val_label, range_label);
+}
+
+static void range_btn_event_cb(lv_event_t * e) {
+    intptr_t dir = (intptr_t)lv_event_get_user_data(e);
+    int new_idx = (int)ui::radar::rangeIndex() + dir;
+    if (new_idx < 0) {
+        new_idx = ui::radar::kRangePresetCount - 1;
+    } else if (new_idx >= ui::radar::kRangePresetCount) {
+        new_idx = 0;
+    }
+    ui::radar::setRangeIndex(new_idx);
+    update_range_label();
+    ui::radarDisplayDraw(); // Update the radar display behind
+}
+
+static lv_obj_t* create_range_row(lv_obj_t * parent) {
+    lv_obj_t * row = lv_obj_create(parent);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(row, LV_PCT(100), 75);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_color(row, get_lv_color(getCatppuccinFlavor(s_theme_flavor).mantle), 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_all(row, 10, 0);
+
+    lv_obj_t * lbl = lv_label_create(row);
+    lv_label_set_text(lbl, "Radar Radius");
+    lv_obj_set_style_text_color(lbl, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
+    lv_obj_set_width(lbl, LV_PCT(100));
+
+    lv_obj_t * controls = lv_obj_create(row);
+    lv_obj_set_size(controls, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(controls, 0, 0);
+    lv_obj_set_style_border_width(controls, 0, 0);
+    lv_obj_set_style_pad_all(controls, 0, 0);
+    lv_obj_set_flex_flow(controls, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(controls, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    lv_obj_t * btn_minus = lv_btn_create(controls);
+    lv_obj_set_size(btn_minus, 35, 30);
+    lv_obj_add_event_cb(btn_minus, range_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)-1);
+    lv_obj_set_style_bg_color(btn_minus, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
+    lv_obj_t * lbl_minus = lv_label_create(btn_minus);
+    lv_label_set_text(lbl_minus, "<");
+    lv_obj_center(lbl_minus);
+
+    range_val_label = lv_label_create(controls);
+    update_range_label();
+    lv_obj_set_style_text_color(range_val_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
+    lv_obj_set_flex_grow(range_val_label, 1);
+    lv_obj_set_style_text_align(range_val_label, LV_TEXT_ALIGN_CENTER, 0);
+
+    lv_obj_t * btn_plus = lv_btn_create(controls);
+    lv_obj_set_size(btn_plus, 35, 30);
+    lv_obj_add_event_cb(btn_plus, range_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)1);
+    lv_obj_set_style_bg_color(btn_plus, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
+    lv_obj_t * lbl_plus = lv_label_create(btn_plus);
+    lv_label_set_text(lbl_plus, ">");
+    lv_obj_center(lbl_plus);
+
+    return row;
+}
+
+
 static const char* theme_names[] = {"Mocha", "Macchiato", "Frappe", "Latte"};
 static lv_obj_t * theme_val_label = nullptr;
 
@@ -361,6 +431,7 @@ static void build_ui() {
     create_slider_row(list, "Max Planes", 1, services::adsb::kMaxAircraft, s_max_aircraft, "", max_aircraft_slider_event_cb);
     create_slider_row(list, "Sweep Speed", 1000, 15000, s_sweep_speed, "ms", sweep_speed_slider_event_cb);
     create_timezone_row(list);
+    create_range_row(list);
     create_theme_row(list);
     
     // Close button
