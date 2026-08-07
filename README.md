@@ -10,12 +10,12 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
 * **Real-time ADS-B Data**: Fetches live flight data using the open [adsb.fi](https://adsb.fi/) API.
 * **Animated Radar Sweep**: Features a smooth 20 FPS rotating radar sweep (configurable in `config/config.h`).
 * **Local Time Clock**: Displays the current local time via background NTP synchronization using POSIX timezone formats.
-* **Interactive Display**: Tap on any aircraft to view detailed information including its registration, model, altitude, speed, and distance from your location. Tapping an empty space cycles through radar ranges.
+* **Interactive Display**: Tap on any aircraft to view detailed information including its registration, model, altitude, speed, and distance from your location. Tapping the range scale label on the bottom right of the radar cycles through radar ranges.
 * **Hardware Controls**: Use the physical **BOOT button** on the CYD:
   * **Short Press (Screen On)**: Cycle through radar distances.
   * **Long Press (Screen On)**: Turn the screen off and pause rendering to save power.
   * **Short Press (Screen Off)**: Wake the display back up.
-* **On-Device Settings Menu**: Long-press the touch screen to bring up an LVGL-powered settings overlay. Configure preferences like radar sweep speed, altitude limits, theme, and the maximum number of aircraft to track dynamically.
+* **On-Device Settings Menu**: Long-press the touch screen to bring up an LVGL-powered settings overlay. Configure preferences like radar sweep speed, radar radius, altitude limits, theme, and the maximum number of aircraft to track dynamically.
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
 * **Military Aircraft Detection**: Highlights military planes in a distinct peach color with a `[MIL]` tag.
 * **Accurate Projections**: Uses latitude-corrected scaling so east-west distances aren't distorted on the radar.
