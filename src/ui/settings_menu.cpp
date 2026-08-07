@@ -429,8 +429,6 @@ void hide() {
     lv_obj_del(settings_screen);
     settings_screen = nullptr;
     
-    ui::radarDisplaySetStale(true);
-
     // We clear the screen completely so LovyanGFX can draw the radar over it again
     const CatppuccinColors& flavor = getCatppuccinFlavor(s_theme_flavor);
     uint32_t bg_color = flavor.base;
