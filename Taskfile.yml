@@ -116,9 +116,10 @@ tasks:
       - pio run -e cyd_35c --target erase
 
   data:build_airports:
-    desc: Run python script to build large airports data
+    desc: Run python scripts to build airport data
     cmds:
       - python3 scripts/build_large_airports.py
+      - python3 scripts/build_medium_airports.py
 
   default:
     cmds:

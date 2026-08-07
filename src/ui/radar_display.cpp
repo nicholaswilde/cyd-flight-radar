@@ -702,6 +702,9 @@ void drawStaticGrid(Gfx& gfx) {
   if (settings::isAirportsEnabled()) {
     runway::drawLargeAirportRunways(gfx);
   }
+  if (settings::isMediumAirportsEnabled()) {
+    runway::drawMediumAirportRunways(gfx);
+  }
   drawCenterDot(cx, cy);
   drawCardinalLabels();
   drawScaleLabel(cx, cy, grid_r);
