@@ -233,7 +233,8 @@ void loop() {
     } else {
       if (!ui::settings::isVisible() && g_screen_on) {
         static unsigned long s_last_sweep_ms = 0;
-        if (ui::settings::isRadarSweepEnabled() && millis() - s_last_sweep_ms >= 50) { // 20 FPS
+        unsigned long interval = ui::settings::isRadarSweepEnabled() ? 50 : 1000;
+        if (millis() - s_last_sweep_ms >= interval) {
           s_last_sweep_ms = millis();
           ui::radarDisplayUpdateAnimation();
         }

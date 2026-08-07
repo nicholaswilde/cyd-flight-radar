@@ -1042,8 +1042,17 @@ void radarDisplayDraw() {
 
 void radarDisplayUpdateAnimation() {
   initPalette();
+  
+  size_t old_count = s_visible_aircraft_count;
+  
   if (ensureFrameSprite()) {
     renderFrame();
+  }
+  
+  if (old_count != s_visible_aircraft_count) {
+    uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
+    tft.fillRect(60, 318 - 16, 120, 18, bg);
+    drawAircraftCount();
   }
   
   // Update clock independently of ADS-B fetches
