@@ -35,6 +35,21 @@ tasks:
     cmds:
       - pio run -e cyd_35c -t upload -t monitor
 
+  eaum:
+    desc: Erase, upload, and monitor
+    cmds:
+      - pio run -e {{.PIO_ENV}} -t erase -t upload -t monitor
+
+  eaum:cyd_28r:
+    desc: Erase, upload, and monitor for cyd_28r
+    cmds:
+      - pio run -e cyd_28r -t erase -t upload -t monitor
+
+  eaum:cyd_35c:
+    desc: Erase, upload, and monitor for cyd_35c
+    cmds:
+      - pio run -e cyd_35c -t erase -t upload -t monitor
+
   build:
     desc: Build the firmware
     cmds:
