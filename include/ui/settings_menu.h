@@ -17,6 +17,7 @@ bool isRadarSweepEnabled();
 bool isAutoDimmingEnabled();
 int getMaxAltitudeFilter();
 int getSweepRotationSpeedMs();
+int getMaxAircraftLimit();
 bool isTimezoneChanged();
 void clearTimezoneChanged();
 const char* getTimezoneStr();

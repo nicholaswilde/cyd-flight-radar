@@ -7,6 +7,7 @@
 #include "catppuccin.h"
 #include "config.h"
 #include <Preferences.h>
+#include "services/adsb_client.h"
 
 extern LGFX tft;
 
@@ -30,6 +31,7 @@ static bool s_show_ground_aircraft = false;
 static bool s_show_radar_sweep = true;
 static bool s_auto_dimming = false;
 static int s_max_altitude = 50000;
+static int s_max_aircraft = 40;
 static int s_sweep_speed = 6000;
 static Preferences s_prefs;
 static int s_theme_flavor = CATPPUCCIN_MOCHA;
@@ -105,8 +107,16 @@ static void auto_dimming_switch_event_cb(lv_event_t * e) {
 static void max_altitude_slider_event_cb(lv_event_t * e) {
     lv_obj_t * slider = lv_event_get_target(e);
     s_max_altitude = lv_slider_get_value(slider);
-    lv_obj_t * label = (lv_obj_t*)lv_event_get_user_data(e);
+    lv_obj_t * label = (lv_obj_t *)lv_event_get_user_data(e);
     if(label) lv_label_set_text_fmt(label, "%d ft", s_max_altitude);
+}
+
+static void max_aircraft_slider_event_cb(lv_event_t * e) {
+    lv_obj_t * slider = lv_event_get_target(e);
+    s_max_aircraft = lv_slider_get_value(slider);
+    lv_obj_t * label = (lv_obj_t *)lv_event_get_user_data(e);
+    if(label) lv_label_set_text_fmt(label, "%d", s_max_aircraft);
+    s_prefs.putInt("max_ac", s_max_aircraft);
 }
 
 static void sweep_speed_slider_event_cb(lv_event_t * e) {
@@ -348,6 +358,7 @@ static void build_ui() {
     create_toggle_row(list, "Auto-Dim Night", s_auto_dimming, auto_dimming_switch_event_cb);
     
     create_slider_row(list, "Max Alt", 0, 50000, s_max_altitude, "ft", max_altitude_slider_event_cb);
+    create_slider_row(list, "Max Planes", 1, services::adsb::kMaxAircraft, s_max_aircraft, "", max_aircraft_slider_event_cb);
     create_slider_row(list, "Sweep Speed", 1000, 15000, s_sweep_speed, "ms", sweep_speed_slider_event_cb);
     create_timezone_row(list);
     create_theme_row(list);
@@ -371,6 +382,9 @@ void setup() {
     if (s_theme_flavor < 1 || s_theme_flavor > 4) {
         s_theme_flavor = CATPPUCCIN_MOCHA;
     }
+    s_max_aircraft = s_prefs.getInt("max_ac", services::adsb::kMaxAircraft);
+    if (s_max_aircraft < 1) s_max_aircraft = 1;
+    if (s_max_aircraft > services::adsb::kMaxAircraft) s_max_aircraft = services::adsb::kMaxAircraft;
 
     lv_init();
     
@@ -444,6 +458,7 @@ bool isRadarSweepEnabled() { return s_show_radar_sweep; }
 bool isAutoDimmingEnabled() { return s_auto_dimming; }
 int getMaxAltitudeFilter() { return s_max_altitude; }
 int getSweepRotationSpeedMs() { return s_sweep_speed; }
+int getMaxAircraftLimit() { return s_max_aircraft; }
 
 bool isTimezoneChanged() { return s_tz_changed; }
 void clearTimezoneChanged() { s_tz_changed = false; }

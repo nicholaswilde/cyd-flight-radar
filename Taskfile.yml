@@ -136,6 +136,11 @@ tasks:
       - uv run scripts/build_large_airports.py
       - uv run scripts/build_medium_airports.py
 
+  config:setup:
+    desc: Set up configuration files
+    cmds:
+      - cp -n config/secrets.h.example config/secrets.h
+
   default:
     cmds:
       - task -l

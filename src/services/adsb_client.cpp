@@ -413,12 +413,15 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     float p_lat = plane["lat"].as<float>();
     float p_lon = plane["lon"].as<float>();
 
+    size_t aircraft_limit = ui::settings::getMaxAircraftLimit();
+    if (aircraft_limit > kMaxAircraft) aircraft_limit = kMaxAircraft;
+
     Aircraft* target_ac = nullptr;
-    if (n >= kMaxAircraft) {
+    if (n >= aircraft_limit) {
       float furthest_dist = -1.0f;
       size_t furthest_idx = 0;
       float cos_lat = cos(center_lat * M_PI / 180.0f);
-      for (size_t i = 0; i < kMaxAircraft; ++i) {
+      for (size_t i = 0; i < aircraft_limit; ++i) {
         float dLat = s_aircraft_buffer[i].lat - center_lat;
         float dLon = (s_aircraft_buffer[i].lon - center_lon) * cos_lat;
         float d = dLat * dLat + dLon * dLon;
