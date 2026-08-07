@@ -3,6 +3,7 @@
 #include <lvgl.h>
 #include "hardware/display.h"
 #include "ui/radar_display.h"
+#include "ui/radar_range.h"
 #include "catppuccin.h"
 #include "config.h"
 #include <Preferences.h>
@@ -79,6 +80,14 @@ static void airports_switch_event_cb(lv_event_t * e) {
 static void medium_airports_switch_event_cb(lv_event_t * e) {
     lv_obj_t * sw = lv_event_get_target(e);
     s_show_medium_airports = lv_obj_has_state(sw, LV_STATE_CHECKED);
+}
+
+static void units_switch_event_cb(lv_event_t * e) {
+    lv_obj_t * sw = lv_event_get_target(e);
+    ui::radar::setUseMiles(!lv_obj_has_state(sw, LV_STATE_CHECKED));
+    // Trigger a redraw of the radar details panel and labels
+    ui::radarDisplaySetStale(true);
+    ui::radarDisplaySetStale(false);
 }
 
 static void ground_aircraft_switch_event_cb(lv_event_t * e) {
@@ -336,6 +345,7 @@ static void build_ui() {
     // Settings List
     create_toggle_row(list, "Large Airports", s_show_airports, airports_switch_event_cb);
     create_toggle_row(list, "Medium Airports", s_show_medium_airports, medium_airports_switch_event_cb);
+    create_toggle_row(list, "Metric Units", !ui::radar::useMiles(), units_switch_event_cb);
     create_toggle_row(list, "Ground Aircraft", s_show_ground_aircraft, ground_aircraft_switch_event_cb);
     create_toggle_row(list, "Radar Sweep", s_show_radar_sweep, radar_sweep_switch_event_cb);
     create_toggle_row(list, "Auto-Dim Night", s_auto_dimming, auto_dimming_switch_event_cb);

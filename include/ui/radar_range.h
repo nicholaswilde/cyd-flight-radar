@@ -44,6 +44,7 @@ uint8_t rangeIndex();
 float fetchRadiusKm();
 
 bool useMiles();
+void setUseMiles(bool use_miles);
 bool showRunways();
 /** WiFi portal checkbox: "T" = miles, otherwise km. */
 void saveMilesFromPortal(const char* checkbox_value);

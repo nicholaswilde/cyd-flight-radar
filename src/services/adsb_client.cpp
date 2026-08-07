@@ -8,8 +8,9 @@
 #include <cstring>
 
 #include "config.h"
-#include "services/radar_location.h"
 #include "ui/settings_menu.h"
+#include "ui/radar_range.h"
+#include "services/radar_location.h"
 
 namespace services::adsb {
 
@@ -165,7 +166,12 @@ void formatAltitudeTag(const JsonObject& plane, char* out, size_t out_len) {
   float alt = 0.0f;
   if (readJsonFloat(plane, "alt_baro", &alt) ||
       readJsonFloat(plane, "alt_geom", &alt)) {
-    snprintf(out, out_len, "%d ft", static_cast<int>(lroundf(alt)));
+    if (!ui::radar::useMiles()) {
+      snprintf(out, out_len, "%d m", static_cast<int>(lroundf(alt * 0.3048f)));
+    } else {
+      snprintf(out, out_len, "%d ft", static_cast<int>(lroundf(alt)));
+    }
+    return;
   }
 }
 

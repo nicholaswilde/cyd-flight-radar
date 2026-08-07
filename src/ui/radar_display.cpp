@@ -958,13 +958,21 @@ void drawDetailsPanel() {
   ly += lh;
   
   tft.setTextColor(radar::kColorTagAltitude, bg);
-  snprintf(buf, sizeof(buf), "%s | %.0f kts", ac->alt, ac->gs_knots);
+  if (!ui::radar::useMiles()) {
+    snprintf(buf, sizeof(buf), "%s | %.0f km/h", ac->alt, ac->gs_knots * 1.852f);
+  } else {
+    snprintf(buf, sizeof(buf), "%s | %.0f kts", ac->alt, ac->gs_knots);
+  }
   tft.drawString(buf, 4, ly);
   ly += lh;
   
   float dx, dy, dist;
   offsetKmFromCenter(ac->lat, ac->lon, &dx, &dy, &dist);
-  snprintf(buf, sizeof(buf), "Dst: %.1f km (%.1f mi)", dist, dist / 1.60934f);
+  if (!ui::radar::useMiles()) {
+    snprintf(buf, sizeof(buf), "Dst: %.1f km", dist);
+  } else {
+    snprintf(buf, sizeof(buf), "Dst: %.1f mi", dist / 1.60934f);
+  }
   tft.drawString(buf, 4, ly);
 }
 

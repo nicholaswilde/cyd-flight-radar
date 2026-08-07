@@ -91,6 +91,11 @@ float fetchRadiusKm() {
 
 bool useMiles() { return s_use_miles; }
 
+void setUseMiles(bool use_miles) {
+  s_use_miles = use_miles;
+  saveUseMiles();
+}
+
 bool showRunways() { return s_show_runways; }
 
 void saveMilesFromPortal(const char* checkbox_value) {
