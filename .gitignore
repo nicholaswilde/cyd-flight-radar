@@ -77,3 +77,4 @@ Testing/
 # Secrets
 secrets.h
 .codegraph/
+.env
