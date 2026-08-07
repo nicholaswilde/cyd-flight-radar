@@ -199,6 +199,7 @@ void ensureClientConfigured() {
   if (s_tls_configured) return;
 
   s_client.setInsecure();
+  s_http.setReuse(false);
   s_tls_configured = true;
 }
 
