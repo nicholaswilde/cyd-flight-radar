@@ -16,11 +16,11 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
   * **Long Press (Screen On)**: Turn the screen off and pause rendering to save power.
   * **Short Press (Screen Off)**: Wake the display back up.
 * **On-Device Settings Menu**: Long-press the touch screen to bring up an LVGL-powered settings overlay.
-* **Aesthetics**: Fully themed using the gorgeous [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) color palette.
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
 * **Military Aircraft Detection**: Highlights military planes in a distinct peach color with a `[MIL]` tag.
 * **Accurate Projections**: Uses latitude-corrected scaling so east-west distances aren't distorted on the radar.
-* **Memory Optimized**: Employs zero-copy JSON parsing from local buffers to prevent `ArduinoJson` out-of-memory crashes, allowing it to run stably for long periods without heap fragmentation.
+* **Connection Monitoring**: Automatically detects stale data and displays a warning banner if the connection to the ADS-B API is lost.
+* **Memory Optimized**: Employs zero-copy JSON parsing from local buffers to prevent `ArduinoJson` out-of-memory crashes. Smart distance-based aircraft eviction guarantees the closest planes are always shown, even in busy airspace.
 * **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `PlaneRadar-Setup-XXXX`) for configuring network credentials and radar coordinates.
 
 ## ⚙️ Configuration
