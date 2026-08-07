@@ -9,6 +9,10 @@
 - Build firmware: `pio run -e cyd_28r` or `pio run -e cyd_35c`
 - Run host-native tests: `pio test -e native`
 
+## Python Scripts & Environment
+- When running Python scripts in this repository, **always** execute them using `uv` (e.g., `uv run script.py`).
+- Ensure `pyproject.toml` and `uv.lock` are updated if new third-party dependencies are required.
+
 ## RTK Command Guidelines
 - **Git Operations**: Prefix `git` commands with `rtk` (e.g., `rtk git status`, `rtk git diff`, `rtk git log`, `rtk git commit`, `rtk git push`).
 - **GitHub CLI**: Prefix `gh` commands with `rtk` (e.g., `rtk gh issue list | cat`, `rtk gh pr status | cat`). Always pipe `gh` commands to `cat` to bypass interactive pagers.
