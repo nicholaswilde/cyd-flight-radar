@@ -234,7 +234,6 @@ static void range_btn_event_cb(lv_event_t * e) {
     }
     ui::radar::setRangeIndex(new_idx);
     update_range_label();
-    ui::radarDisplayDraw(); // Update the radar display behind
 }
 
 static lv_obj_t* create_range_row(lv_obj_t * parent) {
