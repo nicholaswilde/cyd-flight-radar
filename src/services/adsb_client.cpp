@@ -317,9 +317,16 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
    private:
     bool readChunkHeader() {
       if (eof_) return false;
-      String header = inner_->readStringUntil('\n');
-      header.trim();
-      if (header.length() == 0) return false;
+      String header;
+      int retries = 5;
+      do {
+        header = inner_->readStringUntil('\n');
+        header.trim();
+        if (header.length() == 0) {
+          retries--;
+          if (retries <= 0) return false;
+        }
+      } while (header.length() == 0);
       chunk_left_ = strtol(header.c_str(), nullptr, 16);
       if (chunk_left_ == 0) {
         eof_ = true;
