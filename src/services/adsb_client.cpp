@@ -231,11 +231,20 @@ JsonDocument& filterDoc() {
   return filter;
 }
 
+static int safeStreamRead(Stream& stream) {
+    long timeout = millis() + 5000;
+    while (stream.available() == 0) {
+        if (millis() > timeout) return -1;
+        delay(1);
+    }
+    return stream.read();
+}
+
 static bool extractNextJsonObject(Stream& stream, String& out) {
     out.clear();
     int c;
     // Find start of object or end of array
-    while ((c = stream.read()) != '{') {
+    while ((c = safeStreamRead(stream)) != '{') {
         if (c == -1) return false;
         if (c == ']') return false;
     }
@@ -244,7 +253,7 @@ static bool extractNextJsonObject(Stream& stream, String& out) {
     bool inString = false;
     bool escape = false;
     while (braceCount > 0) {
-        c = stream.read();
+        c = safeStreamRead(stream);
         if (c == -1) return false;
         out += (char)c;
         if (escape) {
@@ -369,6 +378,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   ChunkedStream chunked(client_stream);
   Stream& stream = (s_http.getSize() == -1) ? static_cast<Stream&>(chunked) : static_cast<Stream&>(*client_stream);
 
+  stream.setTimeout(10000);
   if (!stream.find("\"ac\":[")) {
     Serial.println("adsb: JSON parse error: missing ac array");
     s_http.end();
