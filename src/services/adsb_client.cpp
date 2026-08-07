@@ -352,9 +352,6 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   size_t n = 0;
   for (JsonObject plane : ac) {
-    if (n >= kMaxAircraft) {
-      break;
-    }
     if (!plane["lat"].is<float>() || !plane["lon"].is<float>()) {
       continue;
     }
@@ -369,15 +366,46 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
       }
     }
 
-    s_aircraft_buffer[n].lat = plane["lat"].as<float>();
-    s_aircraft_buffer[n].lon = plane["lon"].as<float>();
-    s_aircraft_buffer[n].nose_deg = pickNoseHeading(plane);
-    s_aircraft_buffer[n].track_deg = pickTrackHeading(plane);
-    s_aircraft_buffer[n].gs_knots = pickGroundSpeed(plane);
-    s_aircraft_buffer[n].is_heli = isHelicopter(plane);
-    s_aircraft_buffer[n].is_military = isMilitary(plane);
-    fillTagFields(&s_aircraft_buffer[n], plane);
-    ++n;
+    float p_lat = plane["lat"].as<float>();
+    float p_lon = plane["lon"].as<float>();
+
+    Aircraft* target_ac = nullptr;
+    if (n >= kMaxAircraft) {
+      float furthest_dist = -1.0f;
+      size_t furthest_idx = 0;
+      float cos_lat = cos(center_lat * M_PI / 180.0f);
+      for (size_t i = 0; i < kMaxAircraft; ++i) {
+        float dLat = s_aircraft_buffer[i].lat - center_lat;
+        float dLon = (s_aircraft_buffer[i].lon - center_lon) * cos_lat;
+        float d = dLat * dLat + dLon * dLon;
+        if (d > furthest_dist) {
+          furthest_dist = d;
+          furthest_idx = i;
+        }
+      }
+      
+      float dLat = p_lat - center_lat;
+      float dLon = (p_lon - center_lon) * cos_lat;
+      float new_dist = dLat * dLat + dLon * dLon;
+      
+      if (new_dist < furthest_dist) {
+        target_ac = &s_aircraft_buffer[furthest_idx];
+      } else {
+        continue;
+      }
+    } else {
+      target_ac = &s_aircraft_buffer[n];
+      ++n;
+    }
+
+    target_ac->lat = p_lat;
+    target_ac->lon = p_lon;
+    target_ac->nose_deg = pickNoseHeading(plane);
+    target_ac->track_deg = pickTrackHeading(plane);
+    target_ac->gs_knots = pickGroundSpeed(plane);
+    target_ac->is_heli = isHelicopter(plane);
+    target_ac->is_military = isMilitary(plane);
+    fillTagFields(target_ac, plane);
   }
   
   // Double buffer copy
