@@ -84,7 +84,9 @@ int s_scale_label_h = 0;
 lgfx::LovyanGFX* s_draw = &tft;
 LGFX_Sprite s_frame(&tft);
 bool s_frame_ready = false;
-char s_selected_hex[7] = {0};
+static char s_selected_hex[7] = {0};
+
+static size_t s_visible_aircraft_count = 0;
 bool s_data_stale = false;
 
 class DrawScope {
@@ -587,6 +589,8 @@ void drawAircraft() {
         dots[d].is_heli ? radar::kColorHelicopter : 
         (dots[d].is_military ? radar::kColorMilitary : radar::kColorAircraft));
   }
+  
+  s_visible_aircraft_count = draw_count + dot_count;
 
   sortDrawItemsFarFirst(items, draw_count);
   for (size_t d = 0; d < draw_count; ++d) {
@@ -867,7 +871,7 @@ void drawAircraftCount() {
     displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
   }
   char buf[32];
-  snprintf(buf, sizeof(buf), "%u aircraft", static_cast<unsigned>(services::adsb::aircraftCount()));
+  snprintf(buf, sizeof(buf), "%u aircraft", static_cast<unsigned>(s_visible_aircraft_count));
   tft.drawString(buf, 120, 318);
 }
 
