@@ -85,9 +85,6 @@ static void medium_airports_switch_event_cb(lv_event_t * e) {
 static void units_switch_event_cb(lv_event_t * e) {
     lv_obj_t * sw = lv_event_get_target(e);
     ui::radar::setUseMiles(!lv_obj_has_state(sw, LV_STATE_CHECKED));
-    // Trigger a redraw of the radar details panel and labels
-    ui::radarDisplaySetStale(true);
-    ui::radarDisplaySetStale(false);
 }
 
 static void ground_aircraft_switch_event_cb(lv_event_t * e) {
