@@ -27,7 +27,7 @@ struct Aircraft {
   size_t trail_head;
 };
 
-constexpr size_t kMaxAircraft = 64;
+constexpr size_t kMaxAircraft = 40;
 
 size_t aircraftCount();
 const Aircraft* aircraftList();
