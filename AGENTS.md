@@ -30,6 +30,10 @@
 - Prefix the issue title with `[feat]: <description>` or `[bug]: <description>`.
 - Add the `enhancement` or `bug` label to the issue accordingly using the `--label` flag with the `gh` command.
 
+## Issue Resolution
+- When committing a fix for an issue on the remote repository, **always** include a closing keyword in the commit message (e.g., `fixes #<number>`, `resolves #<number>`, or `closes #<number>`).
+- This ensures GitHub automatically closes the issue when the commit is pushed.
+
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 
