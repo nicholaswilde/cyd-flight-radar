@@ -230,6 +230,36 @@ JsonDocument& filterDoc() {
   return filter;
 }
 
+static bool extractNextJsonObject(Stream& stream, String& out) {
+    out.clear();
+    int c;
+    // Find start of object or end of array
+    while ((c = stream.read()) != '{') {
+        if (c == -1) return false;
+        if (c == ']') return false;
+    }
+    int braceCount = 1;
+    out += '{';
+    bool inString = false;
+    bool escape = false;
+    while (braceCount > 0) {
+        c = stream.read();
+        if (c == -1) return false;
+        out += (char)c;
+        if (escape) {
+            escape = false;
+        } else if (c == '\\') {
+            escape = true;
+        } else if (c == '"') {
+            inString = !inString;
+        } else if (!inString) {
+            if (c == '{') braceCount++;
+            else if (c == '}') braceCount--;
+        }
+    }
+    return true;
+}
+
 bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   const float dist_nm = kmToNauticalMiles(fetch_radius_km);
 
@@ -262,9 +292,6 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     return false;
   }
 
-  // If Transfer-Encoding is chunked, s_http.getSize() returns -1.
-  // In that case, we MUST decode the chunks.
-  // Otherwise, we can read directly.
   class ChunkedStream : public Stream {
    public:
     explicit ChunkedStream(Stream* inner) : inner_(inner) {}
@@ -280,7 +307,6 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
       if (eof_) return -1;
       if (chunk_left_ == 0 && !readChunkHeader()) return -1;
       
-      // Wait for data if not available
       long timeout = millis() + 10000;
       while (inner_->available() == 0) {
         if (millis() > timeout) return -1;
@@ -291,7 +317,6 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
       if (c >= 0) {
         chunk_left_--;
         if (chunk_left_ == 0) {
-          // Read trailing \r\n
           long to = millis() + 5000;
           while (inner_->available() < 2 && millis() < to) delay(1);
           inner_->read();
@@ -340,31 +365,27 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     bool eof_ = false;
   };
 
-  JsonDocument doc;
-  DeserializationError err;
-  
-  if (s_http.getSize() == -1) {
-    ChunkedStream chunked(client_stream);
-    err = deserializeJson(doc, chunked, DeserializationOption::Filter(filterDoc()));
-  } else {
-    err = deserializeJson(doc, *client_stream, DeserializationOption::Filter(filterDoc()));
-  }
-  
-  s_http.end();
-  
-  if (err) {
-    Serial.printf("adsb: JSON parse error: %s\n", err.c_str());
+  ChunkedStream chunked(client_stream);
+  Stream& stream = (s_http.getSize() == -1) ? static_cast<Stream&>(chunked) : static_cast<Stream&>(*client_stream);
+
+  if (!stream.find("\"ac\":[")) {
+    Serial.println("adsb: JSON parse error: missing ac array");
+    s_http.end();
     return false;
   }
 
-  JsonArray ac = doc["ac"].as<JsonArray>();
-  if (ac.isNull()) {
-    s_aircraft_count = 0;
-    return true;
-  }
-
   size_t n = 0;
-  for (JsonObject plane : ac) {
+  String jsonStr;
+  jsonStr.reserve(1024);
+  
+  while (extractNextJsonObject(stream, jsonStr)) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, jsonStr);
+    if (err) {
+      Serial.printf("adsb: plane JSON parse error: %s\n", err.c_str());
+      continue;
+    }
+    JsonObject plane = doc.as<JsonObject>();
     if (!plane["lat"].is<float>() || !plane["lon"].is<float>()) {
       continue;
     }
@@ -447,6 +468,8 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   s_aircraft_count = n;
 
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
+  
+  s_http.end();
   return true;
 }
 
