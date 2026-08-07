@@ -406,6 +406,27 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     target_ac->is_heli = isHelicopter(plane);
     target_ac->is_military = isMilitary(plane);
     fillTagFields(target_ac, plane);
+    
+    target_ac->trail_size = 0;
+    target_ac->trail_head = 0;
+    if (target_ac->hex[0] != '\0') {
+      for (size_t i = 0; i < s_aircraft_count; ++i) {
+        if (strcmp(s_aircraft[i].hex, target_ac->hex) == 0) {
+          target_ac->trail_size = s_aircraft[i].trail_size;
+          target_ac->trail_head = s_aircraft[i].trail_head;
+          memcpy(target_ac->trail, s_aircraft[i].trail, sizeof(target_ac->trail));
+          break;
+        }
+      }
+    }
+    
+    size_t last_idx = (target_ac->trail_head + 15) % 16;
+    if (target_ac->trail_size == 0 || target_ac->trail[last_idx].lat != p_lat || target_ac->trail[last_idx].lon != p_lon) {
+      target_ac->trail[target_ac->trail_head].lat = p_lat;
+      target_ac->trail[target_ac->trail_head].lon = p_lon;
+      target_ac->trail_head = (target_ac->trail_head + 1) % 16;
+      if (target_ac->trail_size < 16) target_ac->trail_size++;
+    }
   }
   
   // Double buffer copy

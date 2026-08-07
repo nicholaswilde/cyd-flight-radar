@@ -398,6 +398,27 @@ void drawSpeedVector(int cx, int cy, float heading_deg, float track_deg,
                        color);
 }
 
+void drawFlightTrail(int cx, int cy, const services::adsb::Aircraft& plane) {
+  if (plane.trail_size < 2) return;
+  
+  int last_x = cx;
+  int last_y = cy;
+  for (size_t i = 0; i < plane.trail_size; ++i) {
+    size_t idx = (plane.trail_head + 16 - 1 - i) % 16;
+    int px = 0;
+    int py = 0;
+    latLonToScreen(plane.trail[idx].lat, plane.trail[idx].lon, &px, &py);
+    
+    int ex = px, ey = py;
+    clipPointToOuterRing(last_x, last_y, &ex, &ey);
+    if (ex != last_x || ey != last_y) {
+      s_draw->drawWideLine(last_x, last_y, ex, ey, radar::kAircraftTrackLineHalfWidth, radar::kColorRunway);
+    }
+    last_x = px;
+    last_y = py;
+  }
+}
+
 void drawSelectedHighlight(int cx, int cy) {
   s_draw->drawCircle(cx, cy, 14, radar::kColorTagType);
   s_draw->drawCircle(cx, cy, 15, radar::kColorTagType);
@@ -577,6 +598,7 @@ void drawAircraft() {
       drawSelectedHighlight(x, y);
     }
     
+    drawFlightTrail(x, y, planes[i]);
     drawSpeedVector(x, y, planes[i].nose_deg, planes[i].track_deg,
                     planes[i].gs_knots, radar::kColorTrackVector);
     if (planes[i].is_heli) {

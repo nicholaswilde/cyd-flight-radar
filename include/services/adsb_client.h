@@ -18,6 +18,13 @@ struct Aircraft {
   char desc[32];
   bool is_heli;
   bool is_military;
+  
+  struct {
+    float lat;
+    float lon;
+  } trail[16];
+  size_t trail_size;
+  size_t trail_head;
 };
 
 constexpr size_t kMaxAircraft = 64;
