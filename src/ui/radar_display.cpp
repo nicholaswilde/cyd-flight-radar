@@ -1027,6 +1027,24 @@ bool radarDisplayHandleTouch(int x, int y) {
   return false; // Not handled, pass through
 }
 
+bool radarDisplayIsScaleTapped(int x, int y) {
+  if (y >= radar::kSize) return false;
+  
+  const int cx = radar::kCenterX;
+  const int cy = radar::kCenterY;
+  const int grid_r = radar::kGridOuterRadius;
+  
+  int scale_x = scaleLabelAnchorX(cx, grid_r);
+  int scale_y = cy; 
+
+  int min_x = scale_x - 60;
+  int max_x = scale_x + 20;
+  int min_y = scale_y - 30;
+  int max_y = scale_y + 30;
+
+  return (x >= min_x && x <= max_x && y >= min_y && y <= max_y);
+}
+
 void radarDisplayDraw() {
   initPalette();
   initLabelMetrics();

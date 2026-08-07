@@ -121,6 +121,8 @@ void handleInput() {
     } else if (duration > 40 && duration < 600) {
       if (ui::radarDisplayHandleTouch(s_tap_x, s_tap_y)) {
         ui::radarDisplayRefreshAircraft();
+      } else if (ui::radarDisplayIsScaleTapped(s_tap_x, s_tap_y)) {
+        onRangeTap();
       }
     } else if (duration >= 600) {
       ui::settings::show();

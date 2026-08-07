@@ -12,5 +12,6 @@ void radarDisplaySetStale(bool is_stale);
 void updateThemeColors();
 
 bool radarDisplayHandleTouch(int x, int y);
+bool radarDisplayIsScaleTapped(int x, int y);
 
 }  // namespace ui
