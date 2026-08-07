@@ -85,6 +85,7 @@ lgfx::LovyanGFX* s_draw = &tft;
 LGFX_Sprite s_frame(&tft);
 bool s_frame_ready = false;
 char s_selected_hex[7] = {0};
+bool s_data_stale = false;
 
 class DrawScope {
  public:
@@ -837,6 +838,20 @@ void drawDetailsPanel() {
   drawAppVersion();
   drawClock();
 
+  if (s_data_stale) {
+    tft.fillRect(0, 320 - 24, 240, 24, lgfx::color565(200, 0, 0));
+    tft.setTextColor(lgfx::color565(255, 255, 255), lgfx::color565(200, 0, 0));
+    tft.setTextDatum(textdatum_t::middle_center);
+    displayFontEnsureLoaded(tft);
+    if (displayFontIsSmooth()) {
+      displayFontSetSmoothSize(tft, 0.7f);
+    } else {
+      displayFontSetBitmap(tft, &fonts::FreeSansBold9pt7b);
+    }
+    tft.drawString("Connection Lost", 120, 320 - 12);
+    // Draw on top of everything at the bottom of the screen
+  }
+
   if (s_selected_hex[0] == '\0') {
     tft.setTextDatum(textdatum_t::middle_center);
     tft.setTextColor(radar::kColorLabel, bg);
@@ -909,6 +924,13 @@ void drawDetailsPanel() {
 }
 
 }  // namespace
+
+void radarDisplaySetStale(bool is_stale) {
+  if (s_data_stale != is_stale) {
+    s_data_stale = is_stale;
+    radarDisplayRefreshAircraft();
+  }
+}
 
 bool radarDisplayHandleTouch(int x, int y) {
   bool changed = false;

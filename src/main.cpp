@@ -132,8 +132,20 @@ TaskHandle_t g_fetch_task = nullptr;
 
 void adsbFetchTask(void* pvParameters) {
   const float fetch_km = ui::radar::fetchRadiusKm();
-  services::adsb::fetchUpdate(services::location::lat(),
+  bool success = services::adsb::fetchUpdate(services::location::lat(),
                               services::location::lon(), fetch_km);
+  
+  static int consecutive_failures = 0;
+  if (success) {
+    consecutive_failures = 0;
+    ui::radarDisplaySetStale(false);
+  } else {
+    consecutive_failures++;
+    if (consecutive_failures >= 3) {
+      ui::radarDisplaySetStale(true);
+    }
+  }
+
   g_fetch_task = nullptr;
   vTaskDelete(NULL);
 }
