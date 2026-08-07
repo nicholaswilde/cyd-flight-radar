@@ -207,25 +207,24 @@ JsonDocument& filterDoc() {
   static JsonDocument filter;
   static bool initialized = false;
   if (!initialized) {
-    JsonObject filter_ac = filter["ac"].add<JsonObject>();
-    filter_ac["hex"] = true;
-    filter_ac["flight"] = true;
-    filter_ac["t"] = true;
-    filter_ac["lat"] = true;
-    filter_ac["lon"] = true;
-    filter_ac["alt_baro"] = true;
-    filter_ac["alt_geom"] = true;
-    filter_ac["gs"] = true;
-    filter_ac["tas"] = true;
-    filter_ac["ias"] = true;
-    filter_ac["track"] = true;
-    filter_ac["true_heading"] = true;
-    filter_ac["mag_heading"] = true;
-    filter_ac["dir"] = true;
-    filter_ac["dbFlags"] = true;
-    filter_ac["category"] = true;
-    filter_ac["desc"] = true;
-    filter_ac["r"] = true;
+    filter["hex"] = true;
+    filter["flight"] = true;
+    filter["t"] = true;
+    filter["lat"] = true;
+    filter["lon"] = true;
+    filter["alt_baro"] = true;
+    filter["alt_geom"] = true;
+    filter["gs"] = true;
+    filter["tas"] = true;
+    filter["ias"] = true;
+    filter["track"] = true;
+    filter["true_heading"] = true;
+    filter["mag_heading"] = true;
+    filter["dir"] = true;
+    filter["dbFlags"] = true;
+    filter["category"] = true;
+    filter["desc"] = true;
+    filter["r"] = true;
     initialized = true;
   }
   return filter;
@@ -391,7 +390,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   
   while (extractNextJsonObject(stream, jsonStr)) {
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, jsonStr);
+    DeserializationError err = deserializeJson(doc, jsonStr, DeserializationOption::Filter(filterDoc()));
     if (err) {
       Serial.printf("adsb: plane JSON parse error: %s\n", err.c_str());
       continue;
