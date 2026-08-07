@@ -34,7 +34,8 @@ static uint16_t hex2rgb565(uint32_t hex) {
 }
 
 uint16_t kColorBackground = hex2rgb565(0x040A1C);
-uint16_t kColorGrid = hex2rgb565(0x106420);
+// uint16_t kColorGrid = hex2rgb565(0x106420);
+uint16_t kColorGrid = hex2rgb565(0xA6E3A1);
 uint16_t kColorLabel = hex2rgb565(0xFFFFFF);
 uint16_t kColorCenter = hex2rgb565(0xFFFFFF);
 uint16_t kColorAircraft = hex2rgb565(0xFF0000);
