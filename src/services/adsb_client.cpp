@@ -281,7 +281,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
       if (chunk_left_ == 0 && !readChunkHeader()) return -1;
       
       // Wait for data if not available
-      long timeout = millis() + 5000;
+      long timeout = millis() + 10000;
       while (inner_->available() == 0) {
         if (millis() > timeout) return -1;
         delay(1);
@@ -292,7 +292,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
         chunk_left_--;
         if (chunk_left_ == 0) {
           // Read trailing \r\n
-          long to = millis() + 1000;
+          long to = millis() + 5000;
           while (inner_->available() < 2 && millis() < to) delay(1);
           inner_->read();
           inner_->read();
@@ -304,7 +304,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     int peek() override {
       if (eof_) return -1;
       if (chunk_left_ == 0 && !readChunkHeader()) return -1;
-      long timeout = millis() + 5000;
+      long timeout = millis() + 10000;
       while (inner_->available() == 0) {
         if (millis() > timeout) return -1;
         delay(1);
