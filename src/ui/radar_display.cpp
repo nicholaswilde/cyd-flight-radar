@@ -33,34 +33,34 @@ static uint16_t hex2rgb565(uint32_t hex) {
     return tft.color565(r, g, b);
 }
 
-uint16_t kColorBackground = hex2rgb565(COLOR_BASE);
-uint16_t kColorGrid = hex2rgb565(COLOR_OVERLAY);
-uint16_t kColorLabel = hex2rgb565(COLOR_TEXT);
-uint16_t kColorCenter = hex2rgb565(COLOR_TEXT);
-uint16_t kColorAircraft = hex2rgb565(COLOR_RED);
-uint16_t kColorMilitary = hex2rgb565(COLOR_PEACH);
-uint16_t kColorHelicopter = hex2rgb565(COLOR_BLUE);
-uint16_t kColorTrackVector = hex2rgb565(COLOR_MAUVE);
-uint16_t kColorTagType = hex2rgb565(COLOR_YELLOW);
-uint16_t kColorTagAltitude = hex2rgb565(COLOR_BLUE);
-uint16_t kColorRunway = hex2rgb565(COLOR_OVERLAY);
-uint16_t kColorRunwayLabel = hex2rgb565(COLOR_TEXT);
+uint16_t kColorBackground = hex2rgb565(0x040A1C);
+uint16_t kColorGrid = hex2rgb565(0x106420);
+uint16_t kColorLabel = hex2rgb565(0xFFFFFF);
+uint16_t kColorCenter = hex2rgb565(0xFFFFFF);
+uint16_t kColorAircraft = hex2rgb565(0xFF0000);
+uint16_t kColorMilitary = hex2rgb565(0xFF8000);
+uint16_t kColorHelicopter = hex2rgb565(0x00FFFF);
+uint16_t kColorTrackVector = hex2rgb565(0xFF00FF);
+uint16_t kColorTagType = hex2rgb565(0xFFC800);
+uint16_t kColorTagAltitude = hex2rgb565(0x5AC8FF);
+uint16_t kColorRunway = hex2rgb565(0x3896AA);
+uint16_t kColorRunwayLabel = hex2rgb565(0xFFFFFF);
 
 }  // namespace radar
 
 void updateThemeColors() {
-    radar::kColorBackground = radar::hex2rgb565(COLOR_BASE);
-    radar::kColorGrid = radar::hex2rgb565(COLOR_OVERLAY);
-    radar::kColorLabel = radar::hex2rgb565(COLOR_TEXT);
-    radar::kColorCenter = radar::hex2rgb565(COLOR_TEXT);
-    radar::kColorAircraft = radar::hex2rgb565(COLOR_RED);
-    radar::kColorMilitary = radar::hex2rgb565(COLOR_PEACH);
-    radar::kColorHelicopter = radar::hex2rgb565(COLOR_BLUE);
-    radar::kColorTrackVector = radar::hex2rgb565(COLOR_MAUVE);
-    radar::kColorTagType = radar::hex2rgb565(COLOR_YELLOW);
-    radar::kColorTagAltitude = radar::hex2rgb565(COLOR_BLUE);
-    radar::kColorRunway = radar::hex2rgb565(COLOR_OVERLAY);
-    radar::kColorRunwayLabel = radar::hex2rgb565(COLOR_TEXT);
+    radar::kColorBackground = radar::hex2rgb565(0x040A1C);
+    radar::kColorGrid = radar::hex2rgb565(0x106420);
+    radar::kColorLabel = radar::hex2rgb565(0xFFFFFF);
+    radar::kColorCenter = radar::hex2rgb565(0xFFFFFF);
+    radar::kColorAircraft = radar::hex2rgb565(0xFF0000);
+    radar::kColorMilitary = radar::hex2rgb565(0xFF8000);
+    radar::kColorHelicopter = radar::hex2rgb565(0x00FFFF);
+    radar::kColorTrackVector = radar::hex2rgb565(0xFF00FF);
+    radar::kColorTagType = radar::hex2rgb565(0xFFC800);
+    radar::kColorTagAltitude = radar::hex2rgb565(0x5AC8FF);
+    radar::kColorRunway = radar::hex2rgb565(0x3896AA);
+    radar::kColorRunwayLabel = radar::hex2rgb565(0xFFFFFF);
 }
 
 namespace {
@@ -749,8 +749,8 @@ void drawRadarSweep(lgfx::LovyanGFX& gfx) {
     const int ty = cy - static_cast<int>(lroundf(cosf(trail_angle_rad) * r));
     
     // Blend from background to green
-    uint32_t bg_hex = COLOR_BASE;
-    uint32_t fg_hex = COLOR_GREEN;
+    uint32_t bg_hex = 0x040A1C;
+    uint32_t fg_hex = 0x00FF00;
     uint8_t bg_r = (bg_hex >> 16) & 0xFF;
     uint8_t bg_g = (bg_hex >> 8) & 0xFF;
     uint8_t bg_b = bg_hex & 0xFF;
