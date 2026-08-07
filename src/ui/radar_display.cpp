@@ -856,12 +856,28 @@ void drawClock() {
   tft.drawString(time_str, 2, 318);
 }
 
+void drawAircraftCount() {
+  tft.setTextDatum(textdatum_t::bottom_center);
+  uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
+  tft.setTextColor(lgfx::color565(120, 120, 120), bg);
+  displayFontEnsureLoaded(tft);
+  if (displayFontIsSmooth()) {
+    displayFontSetSmoothSize(tft, 0.60f);
+  } else {
+    displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
+  }
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%u aircraft", static_cast<unsigned>(services::adsb::aircraftCount()));
+  tft.drawString(buf, 120, 318);
+}
+
 void drawDetailsPanel() {
   uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
   tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, bg);
   tft.drawFastHLine(0, radar::kSize, 240, radar::kColorGrid);
   drawAppVersion();
   drawClock();
+  drawAircraftCount();
 
   if (s_data_stale) {
     tft.fillRect(0, 320 - 24, 240, 24, lgfx::color565(200, 0, 0));
