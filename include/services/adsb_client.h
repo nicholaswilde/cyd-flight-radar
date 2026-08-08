@@ -39,7 +39,7 @@ const Aircraft* aircraftList();
 /** Fetch aircraft within fetch_radius_km of center_lat/lon from adsb.fi. */
 bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km);
 
-/** Fetch route for a specific aircraft from adsbdb.com. */
-void fetchRoute(Aircraft* ac);
+/** Fetch route for a specific aircraft from adsbdb.com on the next update. */
+void requestRouteFetch(const char* callsign, const char* hex);
 
 }  // namespace services::adsb

@@ -1019,7 +1019,7 @@ bool radarDisplayHandleTouch(int x, int y) {
       strcpy(s_selected_hex, best_hex);
       for (size_t i = 0; i < n; ++i) {
         if (strcmp(planes[i].hex, best_hex) == 0) {
-          services::adsb::fetchRoute(const_cast<services::adsb::Aircraft*>(&planes[i]));
+          services::adsb::requestRouteFetch(planes[i].callsign, planes[i].hex);
           break;
         }
       }

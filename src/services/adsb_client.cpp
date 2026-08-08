@@ -12,9 +12,6 @@
 #include "ui/radar_range.h"
 #include "services/radar_location.h"
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
-
 namespace services::adsb {
 
 namespace {
@@ -28,17 +25,12 @@ Aircraft s_aircraft[kMaxAircraft];
 Aircraft s_aircraft_buffer[kMaxAircraft];
 size_t s_aircraft_count = 0;
 
+static char s_route_callsign[9] = {0};
+static char s_route_hex[7] = {0};
+
 WiFiClientSecure s_client;
 HTTPClient s_http;
 bool s_tls_configured = false;
-
-SemaphoreHandle_t s_network_mutex = NULL;
-
-void ensureMutex() {
-  if (s_network_mutex == NULL) {
-    s_network_mutex = xSemaphoreCreateMutex();
-  }
-}
 
 
 
@@ -280,7 +272,7 @@ static bool extractNextJsonObject(Stream& stream, String& out) {
     return true;
 }
 
-bool fetchUpdateInternal(double center_lat, double center_lon, float fetch_radius_km) {
+bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   const float dist_nm = kmToNauticalMiles(fetch_radius_km);
 
   String url = kApiBase;
@@ -498,78 +490,53 @@ bool fetchUpdateInternal(double center_lat, double center_lon, float fetch_radiu
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
   
   s_http.end();
-  return true;
-}
-
-bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
-  ensureMutex();
-  if (xSemaphoreTake(s_network_mutex, pdMS_TO_TICKS(10000)) != pdTRUE) {
-    return false;
-  }
-  bool result = fetchUpdateInternal(center_lat, center_lon, fetch_radius_km);
-  xSemaphoreGive(s_network_mutex);
-  return result;
-}
-
-static char s_route_callsign[9] = {0};
-static char s_route_hex[7] = {0};
-static TaskHandle_t s_route_task = nullptr;
-
-void routeFetchTask(void* pvParameters) {
-  ensureMutex();
-  if (xSemaphoreTake(s_network_mutex, portMAX_DELAY) == pdTRUE) {
-    ensureClientConfigured();
-    String url = String("https://api.adsbdb.com/v0/callsign/") + s_route_callsign;
+  
+  if (s_route_callsign[0] != '\0' && s_route_callsign[0] != '~') {
+    Aircraft* target = nullptr;
+    for (size_t i = 0; i < s_aircraft_count; ++i) {
+      if (strcmp(s_aircraft[i].hex, s_route_hex) == 0) {
+        target = &s_aircraft[i];
+        break;
+      }
+    }
     
-    if (s_http.begin(s_client, url)) {
-      s_http.setTimeout(kRequestTimeoutMs);
-      int code = s_http.GET();
-      if (code == HTTP_CODE_OK) {
-        String payload = s_http.getString();
-        JsonDocument doc;
-        if (!deserializeJson(doc, payload)) {
-          JsonObject route = doc["response"]["flightroute"];
-          const char* origin = route["origin"].is<const char*>() ? route["origin"].as<const char*>() : nullptr;
-          const char* dest = route["destination"].is<const char*>() ? route["destination"].as<const char*>() : nullptr;
-          
-          if (origin && dest) {
-            for (size_t i = 0; i < s_aircraft_count; ++i) {
-              if (strcmp(s_aircraft[i].hex, s_route_hex) == 0) {
-                strncpy(s_aircraft[i].route_origin, origin, 4);
-                s_aircraft[i].route_origin[4] = '\0';
-                strncpy(s_aircraft[i].route_destination, dest, 4);
-                s_aircraft[i].route_destination[4] = '\0';
-                break;
-              }
+    if (target && target->route_origin[0] == '\0') {
+      ensureClientConfigured();
+      String url = String("https://api.adsbdb.com/v0/callsign/") + s_route_callsign;
+      if (s_http.begin(s_client, url)) {
+        s_http.setTimeout(kRequestTimeoutMs);
+        int code = s_http.GET();
+        if (code == HTTP_CODE_OK) {
+          String payload = s_http.getString();
+          JsonDocument doc;
+          if (!deserializeJson(doc, payload)) {
+            JsonObject route = doc["response"]["flightroute"];
+            if (route["origin"].is<const char*>()) {
+              strncpy(target->route_origin, route["origin"].as<const char*>(), 4);
+              target->route_origin[4] = '\0';
+            }
+            if (route["destination"].is<const char*>()) {
+              strncpy(target->route_destination, route["destination"].as<const char*>(), 4);
+              target->route_destination[4] = '\0';
             }
           }
         }
+        s_http.end();
       }
-      s_http.end();
     }
-    xSemaphoreGive(s_network_mutex);
+    s_route_callsign[0] = '\0';
+    s_route_hex[0] = '\0';
   }
-  s_route_task = nullptr;
-  vTaskDelete(NULL);
+
+  return true;
 }
 
-void fetchRoute(Aircraft* ac) {
-  if (ac->callsign[0] == '\0' || ac->callsign[0] == '~') return;
-  if (ac->route_origin[0] != '\0') return; // already fetched
-
-  if (s_route_task != nullptr) return; // already fetching
-
-  strcpy(s_route_callsign, ac->callsign);
-  strcpy(s_route_hex, ac->hex);
-
-  xTaskCreatePinnedToCore(
-      routeFetchTask,
-      "Route_Fetch",
-      8192,
-      NULL,
-      1,
-      &s_route_task,
-      0);
+void requestRouteFetch(const char* callsign, const char* hex) {
+  if (callsign == nullptr || hex == nullptr) return;
+  strncpy(s_route_callsign, callsign, sizeof(s_route_callsign) - 1);
+  s_route_callsign[sizeof(s_route_callsign) - 1] = '\0';
+  strncpy(s_route_hex, hex, sizeof(s_route_hex) - 1);
+  s_route_hex[sizeof(s_route_hex) - 1] = '\0';
 }
 
 }  // namespace services::adsb

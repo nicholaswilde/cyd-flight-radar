@@ -123,6 +123,7 @@ void handleInput() {
         onRangeTap();
       } else if (ui::radarDisplayHandleTouch(s_tap_x, s_tap_y)) {
         ui::radarDisplayRefreshAircraft();
+        g_last_adsb_fetch_ms = 0;
       }
     } else if (duration >= 600) {
       ui::settings::show();
