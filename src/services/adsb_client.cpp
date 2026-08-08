@@ -274,6 +274,16 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
       ESP.getFreeHeap(),
       heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 
+  // Pre-allocate static filters BEFORE SSL starts so they don't fragment the heap
+  filterDoc();
+  static JsonDocument routeFilter;
+  if (routeFilter.isNull()) {
+    routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
+    routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
+    routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
+    routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
+  }
+
   if (s_route_callsign[0] != '\0' && s_route_callsign[0] != '~') {
     char callsign[9];
     char hex[7];
@@ -303,15 +313,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
         if (code == HTTP_CODE_OK) {
           WiFiClient* stream = s_http.getStreamPtr();
           if (stream != nullptr) {
-            static JsonDocument routeFilter;
-            if (routeFilter.isNull()) {
-              routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
-              routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
-              routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
-              routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
-            }
-
-            static JsonDocument doc;
+            JsonDocument doc;
             doc.clear();
             DeserializationError err = deserializeJson(doc, *stream, DeserializationOption::Filter(routeFilter));
             if (err) {
@@ -346,7 +348,6 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
                 target->route_destination[sizeof(target->route_destination) - 1] = '\0';
               }
             }
-            doc.clear();
           }
         }
         s_http.end();
@@ -491,7 +492,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   size_t n = 0;
   static char jsonStr[2048];
-  static JsonDocument doc;
+  JsonDocument doc;
   while (extractNextJsonObject(stream, jsonStr, sizeof(jsonStr))) {
     doc.clear();
     DeserializationError err = deserializeJson(doc, jsonStr, DeserializationOption::Filter(filterDoc()));
@@ -592,7 +593,6 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   s_http.end();
   s_client.stop();
-  doc.clear();  // Release parse buffer so SSL has a clean contiguous block next cycle
 
   return true;
 }
