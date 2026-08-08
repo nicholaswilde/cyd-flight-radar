@@ -301,13 +301,16 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
         if (code == HTTP_CODE_OK) {
           WiFiClient* stream = s_http.getStreamPtr();
           if (stream != nullptr) {
-            JsonDocument routeFilter;
-            routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
-            routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
-            routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
-            routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
+            static JsonDocument routeFilter;
+            if (routeFilter.isNull()) {
+              routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
+              routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
+              routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
+              routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
+            }
 
-            JsonDocument doc;
+            static JsonDocument doc;
+            doc.clear();
             DeserializationError err = deserializeJson(doc, *stream, DeserializationOption::Filter(routeFilter));
             if (!err) {
               JsonObject originObj = doc["response"]["flightroute"]["origin"];
@@ -460,8 +463,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   size_t n = 0;
   static char jsonStr[2048];
-  
-  JsonDocument doc;
+  static JsonDocument doc;
   while (extractNextJsonObject(stream, jsonStr, sizeof(jsonStr))) {
     doc.clear();
     DeserializationError err = deserializeJson(doc, jsonStr, DeserializationOption::Filter(filterDoc()));
