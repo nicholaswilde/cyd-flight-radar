@@ -202,7 +202,7 @@ void ensureClientConfigured() {
   if (s_tls_configured) return;
 
   s_client.setInsecure();
-  s_http.setReuse(false);
+  s_http.setReuse(true);
   s_tls_configured = true;
 }
 
@@ -242,8 +242,8 @@ static int safeStreamRead(Stream& stream) {
     return stream.read();
 }
 
-static bool extractNextJsonObject(Stream& stream, String& out) {
-    out.clear();
+static bool extractNextJsonObject(Stream& stream, char* buffer, size_t max_len) {
+    size_t len = 0;
     int c;
     // Find start of object or end of array
     while ((c = safeStreamRead(stream)) != '{') {
@@ -251,13 +251,13 @@ static bool extractNextJsonObject(Stream& stream, String& out) {
         if (c == ']') return false;
     }
     int braceCount = 1;
-    out += '{';
+    if (len < max_len - 1) buffer[len++] = '{';
     bool inString = false;
     bool escape = false;
     while (braceCount > 0) {
         c = safeStreamRead(stream);
         if (c == -1) return false;
-        out += (char)c;
+        if (len < max_len - 1) buffer[len++] = (char)c;
         if (escape) {
             escape = false;
         } else if (c == '\\') {
@@ -269,6 +269,7 @@ static bool extractNextJsonObject(Stream& stream, String& out) {
             else if (c == '}') braceCount--;
         }
     }
+    buffer[len] = '\0';
     return true;
 }
 
@@ -458,11 +459,10 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   }
 
   size_t n = 0;
-  String jsonStr;
-  jsonStr.reserve(1024);
+  static char jsonStr[2048];
   
   JsonDocument doc;
-  while (extractNextJsonObject(stream, jsonStr)) {
+  while (extractNextJsonObject(stream, jsonStr, sizeof(jsonStr))) {
     doc.clear();
     DeserializationError err = deserializeJson(doc, jsonStr, DeserializationOption::Filter(filterDoc()));
     if (err) {
