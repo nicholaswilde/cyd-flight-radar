@@ -130,23 +130,16 @@ void handleInput() {
 }
 
 TaskHandle_t g_fetch_task = nullptr;
+volatile bool g_fetch_finished = false;
+volatile bool g_fetch_success = false;
 
 void adsbFetchTask(void* pvParameters) {
   const float fetch_km = ui::radar::fetchRadiusKm();
   bool success = services::adsb::fetchUpdate(services::location::lat(),
                               services::location::lon(), fetch_km);
   
-  static int consecutive_failures = 0;
-  if (success) {
-    consecutive_failures = 0;
-    ui::radarDisplaySetStale(false);
-    ui::radarDisplayRefreshAircraft();  // Refresh to show any newly fetched route data
-  } else {
-    consecutive_failures++;
-    if (consecutive_failures >= 3) {
-      ui::radarDisplaySetStale(true);
-    }
-  }
+  g_fetch_success = success;
+  g_fetch_finished = true;
 
   g_fetch_task = nullptr;
   vTaskDelete(NULL);
@@ -245,6 +238,21 @@ void loop() {
       if (millis() - g_last_adsb_fetch_ms >= config::kAdsbFetchIntervalMs) {
         g_last_adsb_fetch_ms = millis();
         triggerFetch();
+      }
+      
+      if (g_fetch_finished) {
+        g_fetch_finished = false;
+        static int consecutive_failures = 0;
+        if (g_fetch_success) {
+          consecutive_failures = 0;
+          ui::radarDisplaySetStale(false);
+          ui::radarDisplayRefreshAircraft();
+        } else {
+          consecutive_failures++;
+          if (consecutive_failures >= 3) {
+            ui::radarDisplaySetStale(true);
+          }
+        }
       }
     }
   }
