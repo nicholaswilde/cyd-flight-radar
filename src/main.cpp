@@ -161,7 +161,7 @@ void triggerFetch() {
         NULL,               // Task input parameter
         1,                  // Priority of the task
         &g_fetch_task,      // Task handle
-        0);                 // Core where the task should run (0 = network, 1 = UI)
+        1);                 // Core where the task should run (0 = network, 1 = UI)
   }
 }
 
