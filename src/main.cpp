@@ -134,15 +134,16 @@ volatile bool g_fetch_finished = false;
 volatile bool g_fetch_success = false;
 
 void adsbFetchTask(void* pvParameters) {
-  const float fetch_km = ui::radar::fetchRadiusKm();
-  bool success = services::adsb::fetchUpdate(services::location::lat(),
-                              services::location::lon(), fetch_km);
-  
-  g_fetch_success = success;
-  g_fetch_finished = true;
+  while (true) {
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // Wait for triggerFetch() to signal
 
-  g_fetch_task = nullptr;
-  vTaskDelete(NULL);
+    const float fetch_km = ui::radar::fetchRadiusKm();
+    bool success = services::adsb::fetchUpdate(services::location::lat(),
+                                services::location::lon(), fetch_km);
+    
+    g_fetch_success = success;
+    g_fetch_finished = true;
+  }
 }
 
 void triggerFetch() {
@@ -156,6 +157,7 @@ void triggerFetch() {
         &g_fetch_task,      // Task handle
         1);                 // Core where the task should run (0 = network, 1 = UI)
   }
+  xTaskNotifyGive(g_fetch_task);
 }
 
 }  // namespace

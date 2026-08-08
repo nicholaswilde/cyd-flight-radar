@@ -123,6 +123,7 @@ the function scope — call `clear()` at any point after the parsing loop exits.
 | `stream.find()` / `stream.setTimeout(N)` | `Stream::timedRead()` busy-loops without yielding; starves IDLE0 and triggers task WDT on large responses. Use a manual search with `safeStreamRead()` (which calls `delay(1)` while waiting) |
 | `setReuse(true)` + partial stream read | Desync: leftover bytes read as next response headers |
 | `static JsonDocument doc` in fetch func | Heap fragmentation — allocates memory permanently *after* the SSL buffer, leaving a permanent hole when SSL is freed. Use a local `JsonDocument doc;` declared *outside* the `while` loop so it destructs at the end of the function (perfect LIFO). |
+| `xTaskCreate` / `vTaskDelete` in fetch loop | Massive heap fragmentation — FreeRTOS task stacks (e.g. 16KB) created/deleted constantly fragment the heap because `vTaskDelete` relies on the IDLE task for cleanup. Create the task once and use `ulTaskNotifyTake` / `xTaskNotifyGive` to wake it. |
 | `String jsonStr` for streaming parse | Many tiny allocs accelerate fragmentation |
 | `s_client.stop()` without `doc.clear()` | Doc blocks fragment freed SSL region before next cycle |
 | Blocking drain loop (`while(stream.read() >= 0)`) | `safeStreamRead` has 5s timeout -- stalls every fetch cycle |
