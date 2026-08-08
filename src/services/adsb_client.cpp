@@ -273,6 +273,76 @@ static bool extractNextJsonObject(Stream& stream, String& out) {
 }
 
 bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
+  if (s_route_callsign[0] != '\0' && s_route_callsign[0] != '~') {
+    char callsign[9];
+    char hex[7];
+    strncpy(callsign, s_route_callsign, sizeof(callsign) - 1);
+    callsign[sizeof(callsign) - 1] = '\0';
+    strncpy(hex, s_route_hex, sizeof(hex) - 1);
+    hex[sizeof(hex) - 1] = '\0';
+    s_route_callsign[0] = '\0';
+    s_route_hex[0] = '\0';
+
+    Aircraft* target = nullptr;
+    for (size_t i = 0; i < s_aircraft_count; ++i) {
+      if (strcmp(s_aircraft[i].hex, hex) == 0) {
+        target = &s_aircraft[i];
+        break;
+      }
+    }
+
+    if (target && target->route_origin[0] == '\0') {
+      ensureClientConfigured();
+      String url = String("https://api.adsbdb.com/v0/callsign/") + callsign;
+      if (s_http.begin(s_client, url)) {
+        s_http.setTimeout(kRequestTimeoutMs);
+        int code = s_http.GET();
+        if (code == HTTP_CODE_OK) {
+          WiFiClient* stream = s_http.getStreamPtr();
+          if (stream != nullptr) {
+            JsonDocument routeFilter;
+            routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
+            routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
+            routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
+            routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
+
+            JsonDocument doc;
+            DeserializationError err = deserializeJson(doc, *stream, DeserializationOption::Filter(routeFilter));
+            if (!err) {
+              JsonObject originObj = doc["response"]["flightroute"]["origin"];
+              JsonObject destObj = doc["response"]["flightroute"]["destination"];
+
+              const char* origin = nullptr;
+              if (originObj["iata_code"].is<const char*>()) {
+                origin = originObj["iata_code"].as<const char*>();
+              } else if (originObj["icao_code"].is<const char*>()) {
+                origin = originObj["icao_code"].as<const char*>();
+              }
+
+              const char* dest = nullptr;
+              if (destObj["iata_code"].is<const char*>()) {
+                dest = destObj["iata_code"].as<const char*>();
+              } else if (destObj["icao_code"].is<const char*>()) {
+                dest = destObj["icao_code"].as<const char*>();
+              }
+
+              if (origin != nullptr) {
+                strncpy(target->route_origin, origin, sizeof(target->route_origin) - 1);
+                target->route_origin[sizeof(target->route_origin) - 1] = '\0';
+              }
+              if (dest != nullptr) {
+                strncpy(target->route_destination, dest, sizeof(target->route_destination) - 1);
+                target->route_destination[sizeof(target->route_destination) - 1] = '\0';
+              }
+            }
+          }
+        }
+        s_http.end();
+      }
+    }
+    return true;
+  }
+
   const float dist_nm = kmToNauticalMiles(fetch_radius_km);
 
   String url = kApiBase;
@@ -490,69 +560,6 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
   
   s_http.end();
-  
-  if (s_route_callsign[0] != '\0' && s_route_callsign[0] != '~') {
-    Aircraft* target = nullptr;
-    for (size_t i = 0; i < s_aircraft_count; ++i) {
-      if (strcmp(s_aircraft[i].hex, s_route_hex) == 0) {
-        target = &s_aircraft[i];
-        break;
-      }
-    }
-    
-    if (target && target->route_origin[0] == '\0') {
-      ensureClientConfigured();
-      String url = String("https://api.adsbdb.com/v0/callsign/") + s_route_callsign;
-      if (s_http.begin(s_client, url)) {
-        s_http.setTimeout(kRequestTimeoutMs);
-        int code = s_http.GET();
-        if (code == HTTP_CODE_OK) {
-          WiFiClient* stream = s_http.getStreamPtr();
-          if (stream != nullptr) {
-            JsonDocument routeFilter;
-            routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
-            routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
-            routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
-            routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
-
-            JsonDocument doc;
-            DeserializationError err = deserializeJson(doc, *stream, DeserializationOption::Filter(routeFilter));
-            if (!err) {
-              JsonObject originObj = doc["response"]["flightroute"]["origin"];
-              JsonObject destObj = doc["response"]["flightroute"]["destination"];
-
-              const char* origin = nullptr;
-              if (originObj["iata_code"].is<const char*>()) {
-                origin = originObj["iata_code"].as<const char*>();
-              } else if (originObj["icao_code"].is<const char*>()) {
-                origin = originObj["icao_code"].as<const char*>();
-              }
-
-              const char* dest = nullptr;
-              if (destObj["iata_code"].is<const char*>()) {
-                dest = destObj["iata_code"].as<const char*>();
-              } else if (destObj["icao_code"].is<const char*>()) {
-                dest = destObj["icao_code"].as<const char*>();
-              }
-
-              if (origin != nullptr) {
-                strncpy(target->route_origin, origin, sizeof(target->route_origin) - 1);
-                target->route_origin[sizeof(target->route_origin) - 1] = '\0';
-              }
-              if (dest != nullptr) {
-                strncpy(target->route_destination, dest, sizeof(target->route_destination) - 1);
-                target->route_destination[sizeof(target->route_destination) - 1] = '\0';
-              }
-            }
-          }
-        }
-        s_http.end();
-      }
-    }
-    s_route_callsign[0] = '\0';
-    s_route_hex[0] = '\0';
-  }
-
   return true;
 }
 
