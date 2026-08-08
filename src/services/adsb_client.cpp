@@ -456,12 +456,16 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     
     target_ac->trail_size = 0;
     target_ac->trail_head = 0;
+    target_ac->route_origin[0] = '\0';
+    target_ac->route_destination[0] = '\0';
     if (target_ac->hex[0] != '\0') {
       for (size_t i = 0; i < s_aircraft_count; ++i) {
         if (strcmp(s_aircraft[i].hex, target_ac->hex) == 0) {
           target_ac->trail_size = s_aircraft[i].trail_size;
           target_ac->trail_head = s_aircraft[i].trail_head;
           memcpy(target_ac->trail, s_aircraft[i].trail, sizeof(target_ac->trail));
+          strcpy(target_ac->route_origin, s_aircraft[i].route_origin);
+          strcpy(target_ac->route_destination, s_aircraft[i].route_destination);
           break;
         }
       }
@@ -484,6 +488,37 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   
   s_http.end();
   return true;
+}
+
+void fetchRoute(Aircraft* ac) {
+  if (ac->callsign[0] == '\0' || ac->callsign[0] == '~') return;
+  if (ac->route_origin[0] != '\0') return; // already fetched
+
+  ensureClientConfigured();
+  String url = String("https://api.adsbdb.com/v0/callsign/") + ac->callsign;
+  
+  if (!s_http.begin(s_client, url)) return;
+  s_http.setTimeout(kRequestTimeoutMs);
+  
+  int code = s_http.GET();
+  if (code == HTTP_CODE_OK) {
+    String payload = s_http.getString();
+    JsonDocument doc;
+    if (!deserializeJson(doc, payload)) {
+      JsonObject route = doc["response"]["flightroute"];
+      if (route["origin"].is<const char*>()) {
+        const char* origin = route["origin"].as<const char*>();
+        strncpy(ac->route_origin, origin, sizeof(ac->route_origin) - 1);
+        ac->route_origin[sizeof(ac->route_origin) - 1] = '\0';
+      }
+      if (route["destination"].is<const char*>()) {
+        const char* destination = route["destination"].as<const char*>();
+        strncpy(ac->route_destination, destination, sizeof(ac->route_destination) - 1);
+        ac->route_destination[sizeof(ac->route_destination) - 1] = '\0';
+      }
+    }
+  }
+  s_http.end();
 }
 
 }  // namespace services::adsb

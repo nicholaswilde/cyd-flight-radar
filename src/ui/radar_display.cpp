@@ -974,6 +974,9 @@ void drawDetailsPanel() {
   } else {
     snprintf(buf, sizeof(buf), "Dst: %.1f mi", dist / 1.60934f);
   }
+  if (ac->route_origin[0] != '\0' && ac->route_destination[0] != '\0') {
+    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), " | %s -> %s", ac->route_origin, ac->route_destination);
+  }
   tft.drawString(buf, 4, ly);
 }
 
@@ -1014,6 +1017,12 @@ bool radarDisplayHandleTouch(int x, int y) {
   if (best_hex) {
     if (strcmp(s_selected_hex, best_hex) != 0) {
       strcpy(s_selected_hex, best_hex);
+      for (size_t i = 0; i < n; ++i) {
+        if (strcmp(planes[i].hex, best_hex) == 0) {
+          services::adsb::fetchRoute(const_cast<services::adsb::Aircraft*>(&planes[i]));
+          break;
+        }
+      }
       changed = true;
     }
     return true; // Handled
