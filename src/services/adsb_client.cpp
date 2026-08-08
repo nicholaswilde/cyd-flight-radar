@@ -355,6 +355,10 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   ensureClientConfigured();
 
+  Serial.printf("heap: free=%u largest=%u\n",
+      ESP.getFreeHeap(),
+      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
   if (!s_http.begin(s_client, url)) {
     Serial.println("adsb: http.begin failed");
     return false;
@@ -561,6 +565,11 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   s_http.end();
   s_client.stop();
+
+  Serial.printf("heap after stop: free=%u largest=%u\n",
+      ESP.getFreeHeap(),
+      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
   return true;
 }
 
