@@ -291,9 +291,11 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     if (target && target->route_origin[0] == '\0') {
       ensureClientConfigured();
       String url = String("https://api.adsbdb.com/v0/callsign/") + callsign;
+      Serial.printf("route: fetching %s\n", url.c_str());
       if (s_http.begin(s_client, url)) {
         s_http.setTimeout(kRequestTimeoutMs);
         int code = s_http.GET();
+        Serial.printf("route: HTTP %d\n", code);
         if (code == HTTP_CODE_OK) {
           WiFiClient* stream = s_http.getStreamPtr();
           if (stream != nullptr) {
@@ -308,7 +310,9 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
             static JsonDocument doc;
             doc.clear();
             DeserializationError err = deserializeJson(doc, *stream, DeserializationOption::Filter(routeFilter));
-            if (!err) {
+            if (err) {
+              Serial.printf("route: parse error: %s\n", err.c_str());
+            } else {
               JsonObject originObj = doc["response"]["flightroute"]["origin"];
               JsonObject destObj = doc["response"]["flightroute"]["destination"];
 
@@ -326,6 +330,9 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
                 dest = destObj["icao_code"].as<const char*>();
               }
 
+              Serial.printf("route: origin=%s dest=%s\n",
+                  origin ? origin : "(null)", dest ? dest : "(null)");
+
               if (origin != nullptr) {
                 strncpy(target->route_origin, origin, sizeof(target->route_origin) - 1);
                 target->route_origin[sizeof(target->route_origin) - 1] = '\0';
@@ -335,6 +342,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
                 target->route_destination[sizeof(target->route_destination) - 1] = '\0';
               }
             }
+            doc.clear();
           }
         }
         s_http.end();
