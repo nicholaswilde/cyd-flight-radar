@@ -120,6 +120,7 @@ the function scope — call `clear()` at any point after the parsing loop exits.
 
 | Anti-pattern | Problem |
 |---|---|
+| `stream.find()` / `stream.setTimeout(N)` | `Stream::timedRead()` busy-loops without yielding; starves IDLE0 and triggers task WDT on large responses. Use a manual search with `safeStreamRead()` (which calls `delay(1)` while waiting) |
 | `setReuse(true)` + partial stream read | Desync: leftover bytes read as next response headers |
 | Local `JsonDocument doc` in fetch loop | Heap churn — alloc/free on every call causes fragmentation |
 | `String jsonStr` for streaming parse | Many tiny allocs accelerate fragmentation |
