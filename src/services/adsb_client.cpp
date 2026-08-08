@@ -465,12 +465,28 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   ChunkedStream chunked(client_stream);
   Stream& stream = (s_http.getSize() == -1) ? static_cast<Stream&>(chunked) : static_cast<Stream&>(*client_stream);
 
-  stream.setTimeout(10000);
-  if (!stream.find("\"ac\":[")) {
-    Serial.println("adsb: JSON parse error: missing ac array");
-    s_http.end();
-    s_client.stop();
-    return false;
+  // Search for '"ac":[ using safeStreamRead so delay(1) keeps IDLE0 fed
+  {
+    constexpr char kTarget[] = "\"ac\":[";
+    constexpr int kTargetLen = 6;
+    int match = 0;
+    bool found = false;
+    const unsigned long deadline = millis() + 10000;
+    while (millis() < deadline) {
+      int c = safeStreamRead(stream);
+      if (c == -1) break;
+      if ((char)c == kTarget[match]) {
+        if (++match == kTargetLen) { found = true; break; }
+      } else {
+        match = ((char)c == kTarget[0]) ? 1 : 0;
+      }
+    }
+    if (!found) {
+      Serial.println("adsb: JSON parse error: missing ac array");
+      s_http.end();
+      s_client.stop();
+      return false;
+    }
   }
 
   size_t n = 0;
