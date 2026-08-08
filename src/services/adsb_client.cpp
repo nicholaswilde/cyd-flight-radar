@@ -30,7 +30,6 @@ static char s_route_hex[7] = {0};
 
 WiFiClientSecure s_client;
 HTTPClient s_http;
-bool s_tls_configured = false;
 
 
 
@@ -199,11 +198,8 @@ size_t aircraftCount() { return s_aircraft_count; }
 const Aircraft* aircraftList() { return s_aircraft; }
 
 void ensureClientConfigured() {
-  if (s_tls_configured) return;
-
   s_client.setInsecure();
-  s_http.setReuse(true);
-  s_tls_configured = true;
+  s_http.setReuse(false);
 }
 
 JsonDocument& filterDoc() {
@@ -342,6 +338,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
           }
         }
         s_http.end();
+        s_client.stop();
       }
     }
     return true;
@@ -561,8 +558,9 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   s_aircraft_count = n;
 
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
-  
+
   s_http.end();
+  s_client.stop();
   return true;
 }
 
