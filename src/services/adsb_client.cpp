@@ -270,6 +270,10 @@ static bool extractNextJsonObject(Stream& stream, char* buffer, size_t max_len) 
 }
 
 bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
+  Serial.printf("fetch: free=%u largest=%u\n",
+      ESP.getFreeHeap(),
+      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
   if (s_route_callsign[0] != '\0' && s_route_callsign[0] != '~') {
     char callsign[9];
     char hex[7];
@@ -373,6 +377,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   if (code != HTTP_CODE_OK) {
     Serial.printf("adsb: HTTP %d\n", code);
     s_http.end();
+    s_client.stop();
     return false;
   }
 
@@ -380,6 +385,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   if (client_stream == nullptr) {
     Serial.println("adsb: no stream available");
     s_http.end();
+    s_client.stop();
     return false;
   }
 
@@ -463,6 +469,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   if (!stream.find("\"ac\":[")) {
     Serial.println("adsb: JSON parse error: missing ac array");
     s_http.end();
+    s_client.stop();
     return false;
   }
 
