@@ -28,9 +28,6 @@ size_t s_aircraft_count = 0;
 static char s_route_callsign[9] = {0};
 static char s_route_hex[7] = {0};
 
-WiFiClientSecure s_client;
-HTTPClient s_http;
-
 
 
 int performGetWithPoll(HTTPClient& http) {
@@ -197,11 +194,6 @@ size_t aircraftCount() { return s_aircraft_count; }
 
 const Aircraft* aircraftList() { return s_aircraft; }
 
-void ensureClientConfigured() {
-  s_client.setInsecure();
-  s_http.setReuse(false);
-}
-
 JsonDocument& filterDoc() {
   static JsonDocument filter;
   static bool initialized = false;
@@ -284,6 +276,11 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
   }
 
+  WiFiClientSecure client;
+  HTTPClient http;
+  client.setInsecure();
+  http.setReuse(false);
+
   if (s_route_callsign[0] != '\0' && s_route_callsign[0] != '~') {
     char callsign[9];
     char hex[7];
@@ -303,15 +300,14 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     }
 
     if (target && target->route_origin[0] == '\0') {
-      ensureClientConfigured();
       String url = String("https://api.adsbdb.com/v0/callsign/") + callsign;
       Serial.printf("route: fetching %s\n", url.c_str());
-      if (s_http.begin(s_client, url)) {
-        s_http.setTimeout(kRequestTimeoutMs);
-        int code = s_http.GET();
+      if (http.begin(client, url)) {
+        http.setTimeout(kRequestTimeoutMs);
+        int code = http.GET();
         Serial.printf("route: HTTP %d\n", code);
         if (code == HTTP_CODE_OK) {
-          WiFiClient* stream = s_http.getStreamPtr();
+          WiFiClient* stream = http.getStreamPtr();
           if (stream != nullptr) {
             JsonDocument doc;
             doc.clear();
@@ -350,8 +346,8 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
             }
           }
         }
-        s_http.end();
-        s_client.stop();
+        http.end();
+        client.stop();
       }
     }
     return true;
@@ -366,27 +362,25 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   url += "/dist/";
   url += String(dist_nm, 1);
 
-  ensureClientConfigured();
-
-  if (!s_http.begin(s_client, url)) {
+  if (!http.begin(client, url)) {
     Serial.println("adsb: http.begin failed");
     return false;
   }
 
-  s_http.setTimeout(kRequestTimeoutMs);
-  const int code = performGetWithPoll(s_http);
+  http.setTimeout(kRequestTimeoutMs);
+  const int code = performGetWithPoll(http);
   if (code != HTTP_CODE_OK) {
     Serial.printf("adsb: HTTP %d\n", code);
-    s_http.end();
-    s_client.stop();
+    http.end();
+    client.stop();
     return false;
   }
 
-  WiFiClient* client_stream = s_http.getStreamPtr();
+  WiFiClient* client_stream = http.getStreamPtr();
   if (client_stream == nullptr) {
     Serial.println("adsb: no stream available");
-    s_http.end();
-    s_client.stop();
+    http.end();
+    client.stop();
     return false;
   }
 
@@ -464,7 +458,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   };
 
   ChunkedStream chunked(client_stream);
-  Stream& stream = (s_http.getSize() == -1) ? static_cast<Stream&>(chunked) : static_cast<Stream&>(*client_stream);
+  Stream& stream = (http.getSize() == -1) ? static_cast<Stream&>(chunked) : static_cast<Stream&>(*client_stream);
 
   // Search for '"ac":[ using safeStreamRead so delay(1) keeps IDLE0 fed
   {
@@ -484,8 +478,8 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     }
     if (!found) {
       Serial.println("adsb: JSON parse error: missing ac array");
-      s_http.end();
-      s_client.stop();
+      http.end();
+      client.stop();
       return false;
     }
   }
@@ -591,8 +585,8 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
 
-  s_http.end();
-  s_client.stop();
+  http.end();
+  client.stop();
 
   return true;
 }
