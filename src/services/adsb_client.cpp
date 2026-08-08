@@ -558,6 +558,11 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   memcpy(s_aircraft, s_aircraft_buffer, n * sizeof(Aircraft));
   s_aircraft_count = n;
 
+  // Drain the remainder of the response to keep the connection in sync
+  while (stream.read() >= 0) {
+    // just consume
+  }
+
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
   
   s_http.end();
