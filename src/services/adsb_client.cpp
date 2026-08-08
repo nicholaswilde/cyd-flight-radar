@@ -461,8 +461,9 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
   String jsonStr;
   jsonStr.reserve(1024);
   
+  JsonDocument doc;
   while (extractNextJsonObject(stream, jsonStr)) {
-    JsonDocument doc;
+    doc.clear();
     DeserializationError err = deserializeJson(doc, jsonStr, DeserializationOption::Filter(filterDoc()));
     if (err) {
       Serial.printf("adsb: plane JSON parse error: %s\n", err.c_str());
