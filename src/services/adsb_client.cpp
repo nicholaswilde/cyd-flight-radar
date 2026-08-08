@@ -507,17 +507,42 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
         s_http.setTimeout(kRequestTimeoutMs);
         int code = s_http.GET();
         if (code == HTTP_CODE_OK) {
-          String payload = s_http.getString();
-          JsonDocument doc;
-          if (!deserializeJson(doc, payload)) {
-            JsonObject route = doc["response"]["flightroute"];
-            if (route["origin"].is<const char*>()) {
-              strncpy(target->route_origin, route["origin"].as<const char*>(), 4);
-              target->route_origin[4] = '\0';
-            }
-            if (route["destination"].is<const char*>()) {
-              strncpy(target->route_destination, route["destination"].as<const char*>(), 4);
-              target->route_destination[4] = '\0';
+          WiFiClient* stream = s_http.getStreamPtr();
+          if (stream != nullptr) {
+            JsonDocument routeFilter;
+            routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
+            routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
+            routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
+            routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
+
+            JsonDocument doc;
+            DeserializationError err = deserializeJson(doc, *stream, DeserializationOption::Filter(routeFilter));
+            if (!err) {
+              JsonObject originObj = doc["response"]["flightroute"]["origin"];
+              JsonObject destObj = doc["response"]["flightroute"]["destination"];
+
+              const char* origin = nullptr;
+              if (originObj["iata_code"].is<const char*>()) {
+                origin = originObj["iata_code"].as<const char*>();
+              } else if (originObj["icao_code"].is<const char*>()) {
+                origin = originObj["icao_code"].as<const char*>();
+              }
+
+              const char* dest = nullptr;
+              if (destObj["iata_code"].is<const char*>()) {
+                dest = destObj["iata_code"].as<const char*>();
+              } else if (destObj["icao_code"].is<const char*>()) {
+                dest = destObj["icao_code"].as<const char*>();
+              }
+
+              if (origin != nullptr) {
+                strncpy(target->route_origin, origin, sizeof(target->route_origin) - 1);
+                target->route_origin[sizeof(target->route_origin) - 1] = '\0';
+              }
+              if (dest != nullptr) {
+                strncpy(target->route_destination, dest, sizeof(target->route_destination) - 1);
+                target->route_destination[sizeof(target->route_destination) - 1] = '\0';
+              }
             }
           }
         }
