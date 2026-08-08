@@ -140,6 +140,7 @@ void adsbFetchTask(void* pvParameters) {
   if (success) {
     consecutive_failures = 0;
     ui::radarDisplaySetStale(false);
+    ui::radarDisplayRefreshAircraft();  // Refresh to show any newly fetched route data
   } else {
     consecutive_failures++;
     if (consecutive_failures >= 3) {
