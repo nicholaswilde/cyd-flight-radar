@@ -496,7 +496,16 @@ static void build_ui() {
     
     lv_obj_t * wifi_label = lv_label_create(settings_screen);
     lv_label_set_text(wifi_label, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_color(wifi_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
+    
+    lv_color_t wifi_color;
+    if (WiFi.status() == WL_CONNECTED) {
+        wifi_color = get_lv_color(getCatppuccinFlavor(s_theme_flavor).green);
+    } else if (WiFi.getMode() == WIFI_AP) {
+        wifi_color = get_lv_color(getCatppuccinFlavor(s_theme_flavor).mauve);
+    } else {
+        wifi_color = get_lv_color(getCatppuccinFlavor(s_theme_flavor).red);
+    }
+    lv_obj_set_style_text_color(wifi_label, wifi_color, 0);
     lv_obj_align(wifi_label, LV_ALIGN_TOP_RIGHT, -10, 15);
     lv_obj_add_flag(wifi_label, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_ext_click_area(wifi_label, 15);
