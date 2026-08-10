@@ -170,6 +170,27 @@ void test_format_ring3_label(void) {
     TEST_ASSERT_EQUAL_STRING("10mi", buffer);
 }
 
+void test_equirectangular_offset_km(void) {
+    float dx_km = 0, dy_km = 0, dist_km = 0;
+    // Test 1: Same point
+    utils::math::equirectangularOffsetKm(45.0f, -120.0f, 45.0f, -120.0f, &dx_km, &dy_km, &dist_km);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, dx_km);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, dy_km);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, dist_km);
+    
+    // Test 2: Moving North 1 degree (should be 111km)
+    utils::math::equirectangularOffsetKm(45.0f, -120.0f, 46.0f, -120.0f, &dx_km, &dy_km, &dist_km);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, dx_km);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 111.0f, dy_km);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 111.0f, dist_km);
+}
+
+void test_e7_to_deg(void) {
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 45.1234567f, utils::math::e7ToDeg(451234567));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, -120.9876543f, utils::math::e7ToDeg(-1209876543));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, utils::math::e7ToDeg(0));
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_km_to_nm);
@@ -186,5 +207,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_parse_coord);
     RUN_TEST(test_valid_lat_lon);
     RUN_TEST(test_format_ring3_label);
+    RUN_TEST(test_equirectangular_offset_km);
+    RUN_TEST(test_e7_to_deg);
     return UNITY_END();
 }

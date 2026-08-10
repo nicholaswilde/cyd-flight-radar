@@ -9,6 +9,7 @@
 #include "data/medium_airports.h"
 #include "hardware/display_font.h"
 #include "services/radar_location.h"
+#include "utils_math.h"
 #include "ui/radar_range.h"
 #include "ui/radar_theme.h"
 
@@ -76,19 +77,12 @@ void applyRunwayLabelStyle(lgfx::LGFXBase& gfx) {
   }
 }
 
-float e7ToDeg(int32_t e7) { return static_cast<float>(e7) * 1e-7f; }
-
-void offsetKmFromCenter(float lat, float lon, float* dx_km, float* dy_km,
-                        float* dist_km) {
-  // Longitude degrees shrink toward the poles; scale by cos(latitude) so
-  // east-west distance isn't overstated away from the equator.
-  const float center_lat_rad =
-      static_cast<float>(services::location::lat()) * kDegToRad;
-  *dx_km = static_cast<float>(lon - services::location::lon()) * kKmPerDeg *
-           cosf(center_lat_rad);
-  *dy_km =
-      static_cast<float>(lat - services::location::lat()) * kKmPerDeg;
-  *dist_km = sqrtf((*dx_km) * (*dx_km) + (*dy_km) * (*dy_km));
+inline float e7ToDeg(int32_t e7) { return utils::math::e7ToDeg(e7); }
+inline void offsetKmFromCenter(float lat, float lon, float* dx_km, float* dy_km, float* dist_km) {
+  utils::math::equirectangularOffsetKm(
+      static_cast<float>(services::location::lat()),
+      static_cast<float>(services::location::lon()),
+      lat, lon, dx_km, dy_km, dist_km);
 }
 
 void latLonToScreen(float lat, float lon, int* out_x, int* out_y) {

@@ -45,5 +45,18 @@ void formatRing3Label(char* buf, size_t len, float ring3_km, bool use_miles) {
   }
 }
 
+void equirectangularOffsetKm(float center_lat, float center_lon, float lat, float lon, float* dx_km, float* dy_km, float* dist_km) {
+  const float kKmPerDeg = 111.0f;
+  const float kDegToRad = 3.14159265f / 180.0f;
+  const float center_lat_rad = center_lat * kDegToRad;
+  *dx_km = (lon - center_lon) * kKmPerDeg * std::cos(center_lat_rad);
+  *dy_km = (lat - center_lat) * kKmPerDeg;
+  *dist_km = std::sqrt((*dx_km) * (*dx_km) + (*dy_km) * (*dy_km));
+}
+
+float e7ToDeg(int32_t e7) {
+  return static_cast<float>(e7) * 1e-7f;
+}
+
 } // namespace math
 } // namespace utils
