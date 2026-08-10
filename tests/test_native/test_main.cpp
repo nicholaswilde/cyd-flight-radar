@@ -136,6 +136,40 @@ void test_format_altitude_tag(void) {
     TEST_ASSERT_EQUAL_STRING("10668 m", buffer);
 }
 
+void test_parse_coord(void) {
+    double out = 0.0;
+    TEST_ASSERT_TRUE(utils::math::parseCoord("12.34", &out));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 12.34f, static_cast<float>(out));
+    
+    TEST_ASSERT_TRUE(utils::math::parseCoord("-98.76", &out));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, -98.76f, static_cast<float>(out));
+    
+    TEST_ASSERT_FALSE(utils::math::parseCoord("abc", &out));
+    TEST_ASSERT_FALSE(utils::math::parseCoord("12.34x", &out));
+    TEST_ASSERT_FALSE(utils::math::parseCoord("", &out));
+    TEST_ASSERT_FALSE(utils::math::parseCoord(nullptr, &out));
+}
+
+void test_valid_lat_lon(void) {
+    TEST_ASSERT_TRUE(utils::math::validLatLon(45.0, 90.0));
+    TEST_ASSERT_TRUE(utils::math::validLatLon(-90.0, -180.0));
+    TEST_ASSERT_TRUE(utils::math::validLatLon(90.0, 180.0));
+    
+    TEST_ASSERT_FALSE(utils::math::validLatLon(91.0, 0.0));
+    TEST_ASSERT_FALSE(utils::math::validLatLon(-91.0, 0.0));
+    TEST_ASSERT_FALSE(utils::math::validLatLon(0.0, 181.0));
+    TEST_ASSERT_FALSE(utils::math::validLatLon(0.0, -181.0));
+}
+
+void test_format_ring3_label(void) {
+    char buffer[16];
+    utils::math::formatRing3Label(buffer, sizeof(buffer), 10.0f, false);
+    TEST_ASSERT_EQUAL_STRING("10km", buffer);
+    
+    utils::math::formatRing3Label(buffer, sizeof(buffer), 16.0934f, true);
+    TEST_ASSERT_EQUAL_STRING("10mi", buffer);
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_km_to_nm);
@@ -149,5 +183,8 @@ int main(int argc, char **argv) {
     RUN_TEST(test_copy_json_string_trimmed);
     RUN_TEST(test_is_helicopter);
     RUN_TEST(test_format_altitude_tag);
+    RUN_TEST(test_parse_coord);
+    RUN_TEST(test_valid_lat_lon);
+    RUN_TEST(test_format_ring3_label);
     return UNITY_END();
 }

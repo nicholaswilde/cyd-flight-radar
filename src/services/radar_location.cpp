@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "config.h"
+#include "utils_math.h"
 
 namespace services::location {
 
@@ -17,22 +18,7 @@ constexpr char kKeyLon[] = "lon";
 double s_lat = config::kDefaultRadarLat;
 double s_lon = config::kDefaultRadarLon;
 
-bool parseCoord(const char* text, double* out) {
-  if (text == nullptr || text[0] == '\0') {
-    return false;
-  }
-  char* end = nullptr;
-  const double v = strtod(text, &end);
-  if (end == text || (end != nullptr && *end != '\0')) {
-    return false;
-  }
-  *out = v;
-  return true;
-}
 
-bool validLatLon(double lat, double lon) {
-  return lat >= -90.0 && lat <= 90.0 && lon >= -180.0 && lon <= 180.0;
-}
 
 void persist(double lat, double lon) {
   Preferences prefs;
@@ -52,7 +38,7 @@ void init() {
   if (prefs.isKey(kKeyLat) && prefs.isKey(kKeyLon)) {
     const double lat = prefs.getDouble(kKeyLat, config::kDefaultRadarLat);
     const double lon = prefs.getDouble(kKeyLon, config::kDefaultRadarLon);
-    if (validLatLon(lat, lon)) {
+    if (utils::math::validLatLon(lat, lon)) {
       s_lat = lat;
       s_lon = lon;
     }
@@ -67,10 +53,10 @@ double lon() { return s_lon; }
 bool saveFromStrings(const char* lat_str, const char* lon_str) {
   double lat = 0.0;
   double lon = 0.0;
-  if (!parseCoord(lat_str, &lat) || !parseCoord(lon_str, &lon)) {
+  if (!utils::math::parseCoord(lat_str, &lat) || !utils::math::parseCoord(lon_str, &lon)) {
     return false;
   }
-  if (!validLatLon(lat, lon)) {
+  if (!utils::math::validLatLon(lat, lon)) {
     return false;
   }
   persist(lat, lon);

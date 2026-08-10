@@ -17,6 +17,7 @@
 #include "ui/radar_theme.h"
 #include "ui/runway_overlay.h"
 #include "ui/settings_menu.h"
+#include "utils_math.h"
 
 
 
@@ -178,7 +179,7 @@ void initLabelMetrics() {
   char label[12];
   for (size_t i = 0; i < radar::kRangePresetCount; ++i) {
     for (bool miles : {false, true}) {
-      radar::formatRing3Label(label, sizeof(label), radar::kRangePresets[i].ring3_km,
+      utils::math::formatRing3Label(label, sizeof(label), radar::kRangePresets[i].ring3_km,
                               miles);
       const int w = tft.textWidth(label);
       if (w > s_scale_label_max_w) {

@@ -1,6 +1,7 @@
 #include "ui/radar_range.h"
 
 #include "ui/radar_theme.h"
+#include "utils_math.h"
 
 #include <Preferences.h>
 #include <cmath>
@@ -118,18 +119,9 @@ void saveRunwaysFromPortal(const char* checkbox_value) {
   Serial.printf("Runway overlay: %s\n", s_show_runways ? "on" : "off");
 }
 
-void formatRing3Label(char* buf, size_t len, float ring3_km, bool use_miles) {
-  if (use_miles) {
-    const int mi = static_cast<int>(lroundf(ring3_km / kKmPerMile));
-    snprintf(buf, len, "%dmi", mi);
-  } else {
-    const int km = static_cast<int>(lroundf(ring3_km));
-    snprintf(buf, len, "%dkm", km);
-  }
-}
 
 void formatCurrentRing3Label(char* buf, size_t len) {
-  formatRing3Label(buf, len, rangeCurrent().ring3_km, s_use_miles);
+  utils::math::formatRing3Label(buf, len, rangeCurrent().ring3_km, s_use_miles);
 }
 
 void unitsReset() {
