@@ -1,6 +1,5 @@
 #include "services/adsb_client.h"
 
-#include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
 #include <ArduinoJson.h>
@@ -25,27 +24,14 @@ Aircraft s_aircraft[kMaxAircraft];
 Aircraft s_aircraft_buffer[kMaxAircraft];
 size_t s_aircraft_count = 0;
 
+// WiFiClientSecure is a module-scope singleton intentionally.
+// Its constructor allocates ~6KB of persistent state (sslclient_context).
+// By defining it here and pre-warming it in init() BEFORE WiFi starts, this 6KB
+// is placed at the bottom of the heap. 
+WiFiClientSecure s_client;
+
 static char s_route_callsign[9] = {0};
 static char s_route_hex[7] = {0};
-
-
-
-int performGetWithPoll(HTTPClient& http) {
-  http.setConnectTimeout(kConnectAttemptMs);
-  const unsigned long deadline = millis() + kRequestTimeoutMs;
-  while (millis() < deadline) {
-    const int code = http.GET();
-    if (code > 0) {
-      return code;
-    }
-    if (code != HTTPC_ERROR_CONNECTION_REFUSED &&
-        code != HTTPC_ERROR_NOT_CONNECTED) {
-      return code;
-    }
-    delay(500);
-  }
-  return HTTPC_ERROR_READ_TIMEOUT;
-}
 
 float kmToNauticalMiles(float km) { return km / kKmPerNm; }
 
@@ -221,6 +207,11 @@ JsonDocument& filterDoc() {
   return filter;
 }
 
+void init() {
+  filterDoc();
+  s_client.setInsecure();
+}
+
 static int safeStreamRead(Stream& stream) {
     long timeout = millis() + 5000;
     while (stream.available() == 0) {
@@ -233,7 +224,6 @@ static int safeStreamRead(Stream& stream) {
 static bool extractNextJsonObject(Stream& stream, char* buffer, size_t max_len) {
     size_t len = 0;
     int c;
-    // Find start of object or end of array
     while ((c = safeStreamRead(stream)) != '{') {
         if (c == -1) return false;
         if (c == ']') return false;
@@ -262,205 +252,74 @@ static bool extractNextJsonObject(Stream& stream, char* buffer, size_t max_len) 
 }
 
 bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
-  Serial.printf("fetch: free=%u largest=%u\n",
-      ESP.getFreeHeap(),
-      heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+#define HEAP() Serial.printf("heap[%s]: free=%u largest=%u\n", __func__, \
+    ESP.getFreeHeap(), heap_caps_get_largest_free_block(MALLOC_CAP_8BIT))
+  HEAP(); // [0] baseline before anything
 
-  // Pre-allocate static filters BEFORE SSL starts so they don't fragment the heap
   filterDoc();
-  static JsonDocument routeFilter;
-  if (routeFilter.isNull()) {
-    routeFilter["response"]["flightroute"]["origin"]["iata_code"] = true;
-    routeFilter["response"]["flightroute"]["origin"]["icao_code"] = true;
-    routeFilter["response"]["flightroute"]["destination"]["iata_code"] = true;
-    routeFilter["response"]["flightroute"]["destination"]["icao_code"] = true;
-  }
+  s_client.setInsecure();
 
-  WiFiClientSecure client;
-  HTTPClient http;
-  client.setInsecure();
-  http.setReuse(false);
-
-  if (s_route_callsign[0] != '\0' && s_route_callsign[0] != '~') {
-    char callsign[9];
-    char hex[7];
-    strncpy(callsign, s_route_callsign, sizeof(callsign) - 1);
-    callsign[sizeof(callsign) - 1] = '\0';
-    strncpy(hex, s_route_hex, sizeof(hex) - 1);
-    hex[sizeof(hex) - 1] = '\0';
+  if (s_route_callsign[0] != '\0') {
     s_route_callsign[0] = '\0';
     s_route_hex[0] = '\0';
-
-    Aircraft* target = nullptr;
-    for (size_t i = 0; i < s_aircraft_count; ++i) {
-      if (strcmp(s_aircraft[i].hex, hex) == 0) {
-        target = &s_aircraft[i];
-        break;
-      }
-    }
-
-    if (target && target->route_origin[0] == '\0') {
-      String url = String("https://api.adsbdb.com/v0/callsign/") + callsign;
-      Serial.printf("route: fetching %s\n", url.c_str());
-      if (http.begin(client, url)) {
-        http.setTimeout(kRequestTimeoutMs);
-        int code = http.GET();
-        Serial.printf("route: HTTP %d\n", code);
-        if (code == HTTP_CODE_OK) {
-          WiFiClient* stream = http.getStreamPtr();
-          if (stream != nullptr) {
-            JsonDocument doc;
-            doc.clear();
-            DeserializationError err = deserializeJson(doc, *stream, DeserializationOption::Filter(routeFilter));
-            if (err) {
-              Serial.printf("route: parse error: %s\n", err.c_str());
-            } else {
-              JsonObject originObj = doc["response"]["flightroute"]["origin"];
-              JsonObject destObj = doc["response"]["flightroute"]["destination"];
-
-              const char* origin = nullptr;
-              if (originObj["iata_code"].is<const char*>()) {
-                origin = originObj["iata_code"].as<const char*>();
-              } else if (originObj["icao_code"].is<const char*>()) {
-                origin = originObj["icao_code"].as<const char*>();
-              }
-
-              const char* dest = nullptr;
-              if (destObj["iata_code"].is<const char*>()) {
-                dest = destObj["iata_code"].as<const char*>();
-              } else if (destObj["icao_code"].is<const char*>()) {
-                dest = destObj["icao_code"].as<const char*>();
-              }
-
-              Serial.printf("route: origin=%s dest=%s\n",
-                  origin ? origin : "(null)", dest ? dest : "(null)");
-
-              if (origin != nullptr) {
-                strncpy(target->route_origin, origin, sizeof(target->route_origin) - 1);
-                target->route_origin[sizeof(target->route_origin) - 1] = '\0';
-              }
-              if (dest != nullptr) {
-                strncpy(target->route_destination, dest, sizeof(target->route_destination) - 1);
-                target->route_destination[sizeof(target->route_destination) - 1] = '\0';
-              }
-            }
-          }
-        }
-        http.end();
-        client.stop();
-      }
-    }
-    return true;
   }
 
   const float dist_nm = kmToNauticalMiles(fetch_radius_km);
 
-  String url = kApiBase;
-  url += String(center_lat, 6);
-  url += "/lon/";
-  url += String(center_lon, 6);
-  url += "/dist/";
-  url += String(dist_nm, 1);
-
-  if (!http.begin(client, url)) {
-    Serial.println("adsb: http.begin failed");
-    return false;
-  }
-
-  http.setTimeout(kRequestTimeoutMs);
-  const int code = performGetWithPoll(http);
-  if (code != HTTP_CODE_OK) {
-    Serial.printf("adsb: HTTP %d\n", code);
-    http.end();
-    client.stop();
-    return false;
-  }
-
-  WiFiClient* client_stream = http.getStreamPtr();
-  if (client_stream == nullptr) {
-    Serial.println("adsb: no stream available");
-    http.end();
-    client.stop();
-    return false;
-  }
-
-  class ChunkedStream : public Stream {
-   public:
-    explicit ChunkedStream(Stream* inner) : inner_(inner) {}
-  
-    int available() override {
-      if (eof_) return 0;
-      if (chunk_left_ == 0 && !readChunkHeader()) return 0;
-      int avail = inner_->available();
-      return avail < chunk_left_ ? avail : chunk_left_;
+  int retries = 0;
+  bool connected = false;
+  while (retries < 3 && !connected) {
+    if (s_client.connect("opendata.adsb.fi", 443)) {
+      connected = true;
+    } else {
+      s_client.stop(); // Prevent leaks on failed attempts
+      retries++;
+      delay(500);
     }
+  }
+
+  if (!connected) {
+    Serial.println("adsb: connect failed");
+    return false;
+  }
+
+  s_client.printf("GET /api/v3/lat/%.6f/lon/%.6f/dist/%.1f HTTP/1.0\r\n"
+                  "Host: opendata.adsb.fi\r\n"
+                  "Connection: close\r\n"
+                  "User-Agent: CYD-Flight-Radar/1.0\r\n"
+                  "\r\n", center_lat, center_lon, dist_nm);
+
+  const char endOfHeaders[] = "\r\n\r\n";
+  int hdrMatch = 0;
+  bool headersPassed = false;
+  unsigned long hdrTimeout = millis() + 5000;
   
-    int read() override {
-      if (eof_) return -1;
-      if (chunk_left_ == 0 && !readChunkHeader()) return -1;
-      
-      long timeout = millis() + 10000;
-      while (inner_->available() == 0) {
-        if (millis() > timeout) return -1;
-        delay(1);
-      }
-      
-      int c = inner_->read();
-      if (c >= 0) {
-        chunk_left_--;
-        if (chunk_left_ == 0) {
-          long to = millis() + 5000;
-          while (inner_->available() < 2 && millis() < to) delay(1);
-          inner_->read();
-          inner_->read();
+  while (s_client.connected() || s_client.available()) {
+    if (millis() > hdrTimeout) break;
+    if (s_client.available()) {
+      int c = s_client.read();
+      if (c == endOfHeaders[hdrMatch]) {
+        hdrMatch++;
+        if (hdrMatch == 4) {
+          headersPassed = true;
+          break;
         }
+      } else {
+        hdrMatch = (c == '\r') ? 1 : 0;
       }
-      return c;
+    } else {
+      delay(1);
     }
-  
-    int peek() override {
-      if (eof_) return -1;
-      if (chunk_left_ == 0 && !readChunkHeader()) return -1;
-      long timeout = millis() + 10000;
-      while (inner_->available() == 0) {
-        if (millis() > timeout) return -1;
-        delay(1);
-      }
-      return inner_->peek();
-    }
-    
-    size_t write(uint8_t) override { return 0; }
-  
-   private:
-    bool readChunkHeader() {
-      if (eof_) return false;
-      String header;
-      int retries = 5;
-      do {
-        header = inner_->readStringUntil('\n');
-        header.trim();
-        if (header.length() == 0) {
-          retries--;
-          if (retries <= 0) return false;
-        }
-      } while (header.length() == 0);
-      chunk_left_ = strtol(header.c_str(), nullptr, 16);
-      if (chunk_left_ == 0) {
-        eof_ = true;
-        return false;
-      }
-      return true;
-    }
-  
-    Stream* inner_;
-    long chunk_left_ = 0;
-    bool eof_ = false;
-  };
+  }
 
-  ChunkedStream chunked(client_stream);
-  Stream& stream = (http.getSize() == -1) ? static_cast<Stream&>(chunked) : static_cast<Stream&>(*client_stream);
+  if (!headersPassed) {
+    Serial.println("adsb: failed to parse headers");
+    s_client.stop();
+    return false;
+  }
 
-  // Search for '"ac":[ using safeStreamRead so delay(1) keeps IDLE0 fed
+  Stream& stream = s_client;
+
   {
     constexpr char kTarget[] = "\"ac\":[";
     constexpr int kTargetLen = 6;
@@ -478,17 +337,17 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     }
     if (!found) {
       Serial.println("adsb: JSON parse error: missing ac array");
-      http.end();
-      client.stop();
+      s_client.stop();
       return false;
     }
   }
 
   size_t n = 0;
   static char jsonStr[2048];
-  JsonDocument doc;
+
+  { // Block scope
   while (extractNextJsonObject(stream, jsonStr, sizeof(jsonStr))) {
-    doc.clear();
+    JsonDocument doc; // Local to iteration to prevent heap interleaving with LwIP pbufs
     DeserializationError err = deserializeJson(doc, jsonStr, DeserializationOption::Filter(filterDoc()));
     if (err) {
       Serial.printf("adsb: plane JSON parse error: %s\n", err.c_str());
@@ -515,34 +374,15 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     size_t aircraft_limit = ui::settings::getMaxAircraftLimit();
     if (aircraft_limit > kMaxAircraft) aircraft_limit = kMaxAircraft;
 
-    Aircraft* target_ac = nullptr;
+    // NOTE: Closest-aircraft replacement logic removed — it ran a full O(n)
+    // distance loop on every incoming plane once the buffer was full, burning
+    // CPU and stack during JSON parsing. Aircraft are now simply capped in
+    // arrival order (the API already returns them ordered by distance).
     if (n >= aircraft_limit) {
-      float furthest_dist = -1.0f;
-      size_t furthest_idx = 0;
-      float cos_lat = cos(center_lat * M_PI / 180.0f);
-      for (size_t i = 0; i < aircraft_limit; ++i) {
-        float dLat = s_aircraft_buffer[i].lat - center_lat;
-        float dLon = (s_aircraft_buffer[i].lon - center_lon) * cos_lat;
-        float d = dLat * dLat + dLon * dLon;
-        if (d > furthest_dist) {
-          furthest_dist = d;
-          furthest_idx = i;
-        }
-      }
-      
-      float dLat = p_lat - center_lat;
-      float dLon = (p_lon - center_lon) * cos_lat;
-      float new_dist = dLat * dLat + dLon * dLon;
-      
-      if (new_dist < furthest_dist) {
-        target_ac = &s_aircraft_buffer[furthest_idx];
-      } else {
-        continue;
-      }
-    } else {
-      target_ac = &s_aircraft_buffer[n];
-      ++n;
+      continue;
     }
+    Aircraft* target_ac = &s_aircraft_buffer[n];
+    ++n;
 
     target_ac->lat = p_lat;
     target_ac->lon = p_lon;
@@ -585,9 +425,14 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
   Serial.printf("adsb: %u aircraft\n", static_cast<unsigned>(n));
 
-  http.end();
-  client.stop();
+  } // end block scope: doc destructs HERE, freeing its pool BEFORE http.end()
+    // + client.stop(). This ensures the heap allocator sees doc's freed region
+    // and SSL's freed region simultaneously and can coalesce them (esp32-ssl-heap).
+  HEAP(); // [5] after doc destructor (pool freed)
+  s_client.stop();
+  HEAP(); // [6] after client.stop (SSL freed)
 
+#undef HEAP
   return true;
 }
 

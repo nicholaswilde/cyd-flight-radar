@@ -266,40 +266,66 @@ void drawAirportRunways_impl(lgfx::LGFXBase& gfx,
   if (!radar::showRunways()) return;
   displayFontEnsureLoaded(gfx);
   const float radius_km = radar::fetchRadiusKm();
+  const float current_lat = services::location::lat();
+  const float current_lon = services::location::lon();
 
-  uint16_t label_airports[kMaxAirportLabels];
-  size_t label_count = 0;
+  static float s_last_radius_km = -1.0f;
+  static float s_last_lat = -999.0f;
+  static float s_last_lon = -999.0f;
 
-  for (size_t i = 0; i < N_AIRPORTS; ++i) {
-    in_range[i] = false;
-    label_pending[i] = false;
+  static uint16_t s_cached_runways[512];
+  static size_t s_cached_runway_count = 0;
+  static uint16_t s_cached_airports[kMaxAirportLabels];
+  static size_t s_cached_airport_count = 0;
+
+  if (s_last_radius_km != radius_km || s_last_lat != current_lat || s_last_lon != current_lon) {
+    s_last_radius_km = radius_km;
+    s_last_lat = current_lat;
+    s_last_lon = current_lon;
+
+    s_cached_runway_count = 0;
+    s_cached_airport_count = 0;
+
+    for (size_t i = 0; i < N_AIRPORTS; ++i) {
+      in_range[i] = false;
+      label_pending[i] = false;
+    }
+
+    for (size_t i = 0; i < N_RUNWAYS; ++i) {
+      const auto& rw = runways[i];
+      const uint16_t ap_idx = rw.airport_idx;
+      if (!in_range[ap_idx]) {
+        const auto& ap = airports[ap_idx];
+        float dx_km = 0.0f;
+        float dy_km = 0.0f;
+        float dist_km = 0.0f;
+        offsetKmFromCenter(e7ToDeg(ap.lat_e7), e7ToDeg(ap.lon_e7), &dx_km, &dy_km, &dist_km);
+        in_range[ap_idx] = (dist_km <= radius_km);
+      }
+      if (!in_range[ap_idx]) continue;
+      
+      if (s_cached_runway_count < sizeof(s_cached_runways) / sizeof(s_cached_runways[0])) {
+        s_cached_runways[s_cached_runway_count++] = i;
+      }
+      
+      if (!label_pending[ap_idx] && s_cached_airport_count < kMaxAirportLabels) {
+        label_pending[ap_idx] = true;
+        s_cached_airports[s_cached_airport_count++] = ap_idx;
+      }
+    }
   }
 
-  for (size_t i = 0; i < N_RUNWAYS; ++i) {
-    const auto& rw = runways[i];
-    const uint16_t ap_idx = rw.airport_idx;
-    if (!in_range[ap_idx]) {
-      const auto& ap = airports[ap_idx];
-      float dx_km = 0.0f;
-      float dy_km = 0.0f;
-      float dist_km = 0.0f;
-      offsetKmFromCenter(e7ToDeg(ap.lat_e7), e7ToDeg(ap.lon_e7), &dx_km, &dy_km, &dist_km);
-      in_range[ap_idx] = (dist_km <= radius_km);
-    }
-    if (!in_range[ap_idx]) continue;
-    if (!drawRunwayLine(gfx, rw)) continue;
-    if (!label_pending[ap_idx] && label_count < kMaxAirportLabels) {
-      label_pending[ap_idx] = true;
-      label_airports[label_count++] = ap_idx;
-    }
+  // Draw cached runways
+  for (size_t i = 0; i < s_cached_runway_count; ++i) {
+    drawRunwayLine(gfx, runways[s_cached_runways[i]]);
   }
 
-  if (label_count == 0) return;
+  if (s_cached_airport_count == 0) return;
 
   initRunwayLabelStyle(gfx);
   applyRunwayLabelStyle(gfx);
-  for (size_t i = 0; i < label_count; ++i) {
-    drawAirportLabel(gfx, airports[label_airports[i]]);
+  for (size_t i = 0; i < s_cached_airport_count; ++i) {
+    drawAirportLabel(gfx, airports[s_cached_airports[i]]);
   }
 }
 

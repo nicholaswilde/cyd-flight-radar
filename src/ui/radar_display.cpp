@@ -836,7 +836,9 @@ void drawAppVersion() {
   } else {
     displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
   }
+  tft.setTextPadding(100);
   tft.drawString(config::kAppVersion, 238, 318);
+  tft.setTextPadding(0);
 }
 
 void drawClock() {
@@ -858,7 +860,9 @@ void drawClock() {
   } else {
     displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
   }
+  tft.setTextPadding(50);
   tft.drawString(time_str, 2, 318);
+  tft.setTextPadding(0);
 }
 
 void drawAircraftCount() {
@@ -873,12 +877,13 @@ void drawAircraftCount() {
   }
   char buf[32];
   snprintf(buf, sizeof(buf), "%u aircraft", static_cast<unsigned>(s_visible_aircraft_count));
+  tft.setTextPadding(80);
   tft.drawString(buf, 120, 318);
+  tft.setTextPadding(0);
 }
 
 void drawDetailsPanel() {
   uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
-  tft.fillRect(0, radar::kSize, 240, 320 - radar::kSize, bg);
   tft.drawFastHLine(0, radar::kSize, 240, radar::kColorGrid);
   drawAppVersion();
   drawClock();
@@ -907,7 +912,12 @@ void drawDetailsPanel() {
     } else {
       displayFontSetBitmap(tft, &fonts::FreeSansBold12pt7b);
     }
+    tft.setTextPadding(240);
     tft.drawString("CYD Flight Radar", 120, radar::kSize + (320 - radar::kSize) / 2);
+    tft.setTextPadding(0);
+    // Clear the rest of the lines
+    tft.fillRect(0, radar::kSize + 4, 240, (320 - radar::kSize) / 2 - 12, bg);
+    tft.fillRect(0, radar::kSize + (320 - radar::kSize) / 2 + 12, 240, (320 - radar::kSize) / 2 - 24, bg);
     return;
   }
   
@@ -921,7 +931,9 @@ void drawDetailsPanel() {
     }
   }
   
-  if (!ac) return; // Selected aircraft disappeared
+  if (!ac) {
+    return; // Selected aircraft disappeared
+  }
   
   tft.setTextDatum(textdatum_t::top_left);
   displayFontEnsureLoaded(tft);
@@ -934,8 +946,8 @@ void drawDetailsPanel() {
   const int lh = tft.fontHeight();
   int ly = radar::kSize + 4;
   char buf[64];
-  
   tft.setTextColor(radar::kColorLabel, bg);
+  tft.setTextPadding(236);
   if (ac->reg[0] != '\0') {
     snprintf(buf, sizeof(buf), "%s (%s)%s", ac->callsign, ac->reg, ac->is_military ? " [MIL]" : "");
   } else {
@@ -978,6 +990,7 @@ void drawDetailsPanel() {
     snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), " | %s -> %s", ac->route_origin, ac->route_destination);
   }
   tft.drawString(buf, 4, ly);
+  tft.setTextPadding(0);
 }
 
 }  // namespace
@@ -1085,10 +1098,10 @@ void radarDisplayUpdateAnimation() {
     renderFrame();
   }
   
+  bool footer_needs_update = false;
+
   if (old_count != s_visible_aircraft_count) {
-    uint16_t bg = s_frame_ready ? downsampleColor(radar::kColorBackground) : radar::kColorBackground;
-    tft.fillRect(60, 318 - 16, 120, 18, bg);
-    drawAircraftCount();
+    footer_needs_update = true;
   }
   
   // Update clock independently of ADS-B fetches
@@ -1097,13 +1110,17 @@ void radarDisplayUpdateAnimation() {
   if (getLocalTime(&timeinfo, 0)) {
     if (timeinfo.tm_min != s_last_minute) {
       s_last_minute = timeinfo.tm_min;
-      drawClock();
+      footer_needs_update = true;
     }
   } else {
     if (s_last_minute != -2) {
       s_last_minute = -2;
-      drawClock();
+      footer_needs_update = true;
     }
+  }
+
+  if (footer_needs_update) {
+    drawDetailsPanel();
   }
 }
 

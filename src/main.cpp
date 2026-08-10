@@ -74,7 +74,9 @@ void onRangeTap() {
                 ui::radar::rangeCurrent().outer_km);
 
   if (g_radar_visible && wifiManager.getState() == WIFI_STATE_CONNECTED) {
-    ui::radarDisplayDraw();
+    if (!ui::settings::isVisible()) {
+      ui::radarDisplayDraw();
+    }
     g_last_adsb_fetch_ms = 0; // Force immediate ADSB fetch on next loop
   }
 }
@@ -151,7 +153,7 @@ void triggerFetch() {
     xTaskCreatePinnedToCore(
         adsbFetchTask,      // Function to implement the task
         "ADSB_Fetch",       // Name of the task
-        16384,              // Stack size in words (bytes on ESP32)
+        8192,               // Stack size in words (bytes on ESP32) - Reduced from 16KB to 8KB to save heap
         NULL,               // Task input parameter
         1,                  // Priority of the task
         &g_fetch_task,      // Task handle
@@ -183,6 +185,8 @@ void setup() {
   ui::settings::setup();
   ui::updateThemeColors();
 
+  services::adsb::init();
+
   wifiManager.begin();
   if (wifiManager.getState() == WIFI_STATE_CONNECTING || wifiManager.getState() == WIFI_STATE_DISCONNECTED) {
     statusScreenConnectingBegin(WIFI_SSID);
@@ -192,7 +196,15 @@ void setup() {
 void loop() {
   handleInput();
   wifiManager.update();
+  
+  bool was_settings_visible = ui::settings::isVisible();
   ui::settings::loop();
+  if (was_settings_visible && !ui::settings::isVisible()) {
+    if (g_radar_visible) {
+      ui::radarDisplayDraw();
+    }
+  }
+  
   updateBrightness();
 
   WifiState current_state = wifiManager.getState();
@@ -248,11 +260,16 @@ void loop() {
         if (g_fetch_success) {
           consecutive_failures = 0;
           ui::radarDisplaySetStale(false);
-          ui::radarDisplayRefreshAircraft();
+          if (!ui::settings::isVisible()) {
+            ui::radarDisplayRefreshAircraft();
+          }
         } else {
           consecutive_failures++;
           if (consecutive_failures >= 3) {
             ui::radarDisplaySetStale(true);
+            if (!ui::settings::isVisible()) {
+              ui::radarDisplayRefreshAircraft();
+            }
           }
         }
       }

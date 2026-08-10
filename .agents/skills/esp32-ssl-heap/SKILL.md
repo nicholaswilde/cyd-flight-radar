@@ -37,20 +37,21 @@ is roughly **150–200 KB** once the WiFi stack (~100 KB) is accounted for.
 
 **The fragmentation cascade:**
 
-1. SSL is allocated (36 KB contiguous block carved from heap).
-2. While SSL is active, `deserializeJson()` allocates JsonDocument blocks in the
-   remaining free space — *adjacent to* the SSL region.
-3. `s_http.end()` + `s_client.stop()` frees the SSL 36 KB block.
-4. **But `JsonDocument` retains its pool blocks** between calls. Those blocks now
-   sit in the middle of what was the SSL region.
-5. The 36 KB that was freed is now split into two smaller fragments — neither
-   large enough for the next SSL allocation.
-6. Next `start_ssl_client()` call fails with `-32512`.
+1. The first `s_client.connect()` initializes MbedTLS.
+2. MbedTLS lazy-allocates a **permanent ~7KB global hardware crypto context** (never freed).
+3. This 7KB is carved out of the largest contiguous block (typically SRAM 1).
+4. For example, a 38.9KB block is permanently reduced to ~31.7KB.
+5. While SSL is active, it also allocates ~36KB of dynamic buffers (16KB RX, 4KB TX, overhead).
+6. After the connection closes, the 36KB is freed, but the 7KB remains.
+7. Since the ESP32's SRAM 2 region provides a hard-capped 32.7KB contiguous block, the `largest` block indicator gets permanently pinned to ~32.7KB.
+8. On the **second** cycle, `start_ssl_client()` attempts to allocate 36KB again.
+9. Because `36KB > 32.7KB`, the allocation fails instantly with `-32512`.
 
 The `largest` free block metric confirms this:
 ```
-heap after stop: free=95024  largest=38900   <- stable, doc.clear() called
-heap after stop: free=84508  largest=32756   <- doc NOT cleared, SSL can't fit
+heap[0] before first connect: free=97068  largest=38900
+heap[1] after first connect:  free=89904  largest=32756  <- 7KB permanently gone!
+heap[2] before second connect: free=89904 largest=32756  <- cannot fit 36KB
 ```
 
 ## Diagnosis
@@ -77,55 +78,47 @@ Serial.printf("heap after stop: free=%u largest=%u\n",
 
 ## Fix
 
-**Rule: free the `JsonDocument` and the SSL session atomically.**
+**Rule: You must free up >43KB of contiguous heap globally so the remainder after the 7KB MbedTLS penalty is still >36KB.**
 
-Call `doc.clear()` immediately after `s_client.stop()` — before returning from
-the fetch function. Both release together, giving the heap allocator the best
-chance to coalesce them into one large free block.
+Because ESP32 Arduino Core v2.0 uses a precompiled MbedTLS library, you **cannot** dynamically reduce `WiFiClientSecure` buffer sizes (calling `setBufferSizes` will fail to compile). You must increase the available heap.
 
+**1. Reclaim FreeRTOS Task Stacks**
+If your fetch loop runs in a background task (via `xTaskCreatePinnedToCore`), check the stack size. Many examples use `16384` (16KB). By moving large local buffers (like `char jsonStr[2048]`) to `static` memory, you can safely halve the stack size to `8192` (8KB). This permanently returns 8KB of contiguous memory to the heap, which is often exactly what MbedTLS needs to survive cycle 2.
+
+**2. Ditch `HTTPClient` for Raw `WiFiClientSecure`**
+The built-in `HTTPClient` is a massive source of fragmentation because it heavily relies on `String` allocations for headers (`User-Agent`, `Connection`, etc.). These strings allocate sequentially on the heap, shattering the contiguous free space right before MbedTLS initializes. 
+Instead, use a raw `WiFiClientSecure` and `printf` the HTTP/1.0 headers yourself:
 ```cpp
-s_http.end();
-s_client.stop();
-doc.clear();  // <- critical: release alongside SSL so heap can coalesce
-return true;
+WiFiClientSecure s_client;
+s_client.setInsecure(); // Or use a CA bundle
+if (s_client.connect(host, 443)) {
+  s_client.printf("GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n", path, host);
+}
 ```
 
-If the `JsonDocument` is a `static` local variable, it's accessible throughout
-the function scope — call `clear()` at any point after the parsing loop exits.
-
-**Also apply these to prevent the NoMemory secondary symptom:**
-
-1. **Use `static char` buffer instead of `String` for intermediate JSON.**
-   `String` causes many small heap allocs/frees during streaming parse.
-   ```cpp
-   static char jsonStr[2048];  // BSS -- never heap-allocated
-   // was: String jsonStr; jsonStr.reserve(1024);
-   ```
-
-2. **Make the parse-loop `JsonDocument` static** so it has a stable identity.
-   Even though ArduinoJson v7 frees on `clear()`, having it static ensures its
-   pointer is consistent and helps avoid allocation-order surprises:
-   ```cpp
-   static JsonDocument doc;
-   // was: JsonDocument doc;  <- re-declared as local each call
-   ```
-
-3. **Do NOT use HTTP keep-alive (`setReuse(true)`) with streaming partial reads.**
-   If you stop reading before the end of the response body, the next request
-   over the same socket reads stale bytes from the previous response, causing
-   permanent desync. Always use `setReuse(false)` + `s_client.stop()` when
-   doing mid-stream JSON parsing.
+**3. Move Large Buffers to `static` (.bss)**
+To prevent the NoMemory secondary symptom during JSON parsing:
+- **Use a `static char` buffer instead of `String` for intermediate JSON.**
+  `String` causes many small heap allocs/frees during streaming parse.
+  ```cpp
+  static char jsonStr[2048];  // BSS -- never heap-allocated
+  // was: String jsonStr; jsonStr.reserve(1024);
+  ```
+- **Make the parse-loop `JsonDocument` static** so it has a stable identity.
+  ```cpp
+  static JsonDocument doc;
+  ```
 
 ## Anti-Patterns That Cause This
 
 | Anti-pattern | Problem |
 |---|---|
+| Using `HTTPClient` | Allocates multiple `String` headers right before MbedTLS initializes, shattering the heap. Use raw `WiFiClientSecure` with `printf` instead. |
+| Oversized Task Stacks | `xTaskCreate` allocates stack from the heap. If a background task uses `16KB`, that's 16KB permanently gone. Use `8KB` or less by moving buffers to `static`. |
 | `stream.find()` / `stream.setTimeout(N)` | `Stream::timedRead()` busy-loops without yielding; starves IDLE0 and triggers task WDT on large responses. Use a manual search with `safeStreamRead()` (which calls `delay(1)` while waiting) |
 | `setReuse(true)` + partial stream read | Desync: leftover bytes read as next response headers |
 | `static JsonDocument doc` in fetch func | Heap fragmentation — allocates memory permanently *after* the SSL buffer, leaving a permanent hole when SSL is freed. Use a local `JsonDocument doc;` declared *outside* the `while` loop so it destructs at the end of the function (perfect LIFO). |
-| `xTaskCreate` / `vTaskDelete` in fetch loop | Massive heap fragmentation — FreeRTOS task stacks (e.g. 16KB) created/deleted constantly fragment the heap because `vTaskDelete` relies on the IDLE task for cleanup. Create the task once and use `ulTaskNotifyTake` / `xTaskNotifyGive` to wake it. |
 | `String jsonStr` for streaming parse | Many tiny allocs accelerate fragmentation |
-| `s_client.stop()` without `doc.clear()` | Doc blocks fragment freed SSL region before next cycle |
 | Blocking drain loop (`while(stream.read() >= 0)`) | `safeStreamRead` has 5s timeout -- stalls every fetch cycle |
 
 ## Memory Budget Reference (ESP32 CYD, Arduino framework)

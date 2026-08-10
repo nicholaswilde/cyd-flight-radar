@@ -8,6 +8,7 @@
 #include "config.h"
 #include <Preferences.h>
 #include "services/adsb_client.h"
+#include <WiFi.h>
 
 extern LGFX tft;
 
@@ -39,6 +40,83 @@ static lv_disp_draw_buf_t draw_buf;
 static lv_color_t* buf1 = nullptr;
 static lv_obj_t* settings_screen = nullptr;
 static uint32_t last_tick_millis = 0;
+static unsigned long s_show_ms = 0;
+
+static lv_obj_t* wifi_info_dialog = nullptr;
+
+static void close_wifi_info_cb(lv_event_t * e) {
+    if (wifi_info_dialog != nullptr) {
+        lv_obj_del(wifi_info_dialog);
+        wifi_info_dialog = nullptr;
+    }
+}
+
+static void wifi_icon_click_cb(lv_event_t * e) {
+    if (WiFi.status() != WL_CONNECTED && WiFi.getMode() != WIFI_AP) return;
+    if (wifi_info_dialog != nullptr) return;
+
+    bool isLargeScreen = (lv_disp_get_hor_res(NULL) >= 480 || lv_disp_get_ver_res(NULL) >= 480);
+
+    wifi_info_dialog = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(wifi_info_dialog, lv_pct(85), lv_pct(85));
+    lv_obj_align(wifi_info_dialog, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(wifi_info_dialog, get_lv_color(getCatppuccinFlavor(s_theme_flavor).mantle), 0);
+    lv_obj_set_style_border_color(wifi_info_dialog, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
+    lv_obj_set_style_border_width(wifi_info_dialog, 2, 0);
+    lv_obj_set_style_radius(wifi_info_dialog, 10, 0);
+    lv_obj_clear_flag(wifi_info_dialog, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Title label
+    lv_obj_t * lbl_title = lv_label_create(wifi_info_dialog);
+    lv_label_set_text(lbl_title, "WiFi Info");
+    lv_obj_set_style_text_color(lbl_title, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
+    lv_obj_align(lbl_title, LV_ALIGN_TOP_MID, 0, isLargeScreen ? 10 : 5);
+
+    // Status label
+    lv_obj_t * lbl_status = lv_label_create(wifi_info_dialog);
+    if (WiFi.getMode() == WIFI_AP) {
+        lv_label_set_text(lbl_status, "AP Mode Active");
+        lv_obj_set_style_text_color(lbl_status, get_lv_color(getCatppuccinFlavor(s_theme_flavor).mauve), 0);
+    } else {
+        lv_label_set_text(lbl_status, "Connected");
+        lv_obj_set_style_text_color(lbl_status, get_lv_color(getCatppuccinFlavor(s_theme_flavor).green), 0);
+    }
+    lv_obj_align(lbl_status, LV_ALIGN_TOP_MID, 0, isLargeScreen ? 40 : 25);
+
+    // Info details
+    lv_obj_t * lbl_info = lv_label_create(wifi_info_dialog);
+    char infoBuf[256];
+    if (WiFi.getMode() == WIFI_AP) {
+        snprintf(infoBuf, sizeof(infoBuf), 
+                 "SSID: %s\nIP: %s\nMAC: %s", 
+                 WiFi.softAPSSID().c_str(), 
+                 WiFi.softAPIP().toString().c_str(), 
+                 WiFi.softAPmacAddress().c_str());
+    } else {
+        snprintf(infoBuf, sizeof(infoBuf), 
+                 "SSID: %s\nIP: %s\nMAC: %s\nRSSI: %d dBm", 
+                 WiFi.SSID().c_str(), 
+                 WiFi.localIP().toString().c_str(), 
+                 WiFi.macAddress().c_str(), 
+                 WiFi.RSSI());
+    }
+    lv_label_set_text(lbl_info, infoBuf);
+    lv_obj_set_style_text_align(lbl_info, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(lbl_info, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
+    lv_obj_align(lbl_info, LV_ALIGN_CENTER, 0, isLargeScreen ? 10 : 15);
+
+    // Close Button
+    lv_obj_t * btn_close = lv_btn_create(wifi_info_dialog);
+    lv_obj_set_size(btn_close, isLargeScreen ? 120 : 80, isLargeScreen ? 40 : 30);
+    lv_obj_align(btn_close, LV_ALIGN_BOTTOM_MID, 0, isLargeScreen ? -15 : -5);
+    lv_obj_set_style_bg_color(btn_close, get_lv_color(getCatppuccinFlavor(s_theme_flavor).overlay), 0);
+    lv_obj_add_event_cb(btn_close, close_wifi_info_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t * lbl_close = lv_label_create(btn_close);
+    lv_label_set_text(lbl_close, "Close");
+    lv_obj_set_style_text_color(lbl_close, get_lv_color(getCatppuccinFlavor(s_theme_flavor).crust), 0);
+    lv_obj_align(lbl_close, LV_ALIGN_CENTER, 0, 0);
+}
 
 static void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p) {
     uint32_t w = (area->x2 - area->x1 + 1);
@@ -51,7 +129,7 @@ static void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_col
 }
 
 static void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
-    if (!s_visible) {
+    if (!s_visible || (millis() - s_show_ms < 500)) {
         data->state = LV_INDEV_STATE_REL;
         return;
     }
@@ -67,44 +145,51 @@ static void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data
 }
 
 static void close_btn_event_handler(lv_event_t * e) {
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_CLICKED) {
-        s_pending_hide = true;
-    }
+    s_pending_hide = true;
 }
 
 static void airports_switch_event_cb(lv_event_t * e) {
+    if (!s_visible) return;
     lv_obj_t * sw = lv_event_get_target(e);
     s_show_airports = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    s_prefs.putBool("airports", s_show_airports);
 }
 
 
 static void medium_airports_switch_event_cb(lv_event_t * e) {
+    if (!s_visible) return;
     lv_obj_t * sw = lv_event_get_target(e);
     s_show_medium_airports = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    s_prefs.putBool("med_airports", s_show_medium_airports);
 }
 
 static void units_switch_event_cb(lv_event_t * e) {
+    if (!s_visible) return;
     lv_obj_t * sw = lv_event_get_target(e);
     ui::radar::setUseMiles(!lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
 
 static void ground_aircraft_switch_event_cb(lv_event_t * e) {
+    if (!s_visible) return;
     lv_obj_t * sw = lv_event_get_target(e);
     s_show_ground_aircraft = lv_obj_has_state(sw, LV_STATE_CHECKED);
 }
 
 static void radar_sweep_switch_event_cb(lv_event_t * e) {
+    if (!s_visible) return;
     lv_obj_t * sw = lv_event_get_target(e);
     s_show_radar_sweep = lv_obj_has_state(sw, LV_STATE_CHECKED);
 }
 
 static void auto_dimming_switch_event_cb(lv_event_t * e) {
+    if (!s_visible) return;
     lv_obj_t * sw = lv_event_get_target(e);
     s_auto_dimming = lv_obj_has_state(sw, LV_STATE_CHECKED);
+    s_prefs.putBool("auto_dim", s_auto_dimming);
 }
 
 static void max_altitude_slider_event_cb(lv_event_t * e) {
+    if (!s_visible) return;
     lv_obj_t * slider = lv_event_get_target(e);
     s_max_altitude = lv_slider_get_value(slider);
     lv_obj_t * label = (lv_obj_t *)lv_event_get_user_data(e);
@@ -400,12 +485,22 @@ static lv_obj_t* create_timezone_row(lv_obj_t * parent) {
 
 static void build_ui() {
     settings_screen = lv_obj_create(NULL);
+    if (!settings_screen) return;
+    
     lv_obj_set_style_bg_color(settings_screen, get_lv_color(getCatppuccinFlavor(s_theme_flavor).base), 0);
     
     lv_obj_t * title = lv_label_create(settings_screen);
     lv_label_set_text(title, "Settings");
     lv_obj_set_style_text_color(title, get_lv_color(getCatppuccinFlavor(s_theme_flavor).text), 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 15);
+    
+    lv_obj_t * wifi_label = lv_label_create(settings_screen);
+    lv_label_set_text(wifi_label, LV_SYMBOL_WIFI);
+    lv_obj_set_style_text_color(wifi_label, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
+    lv_obj_align(wifi_label, LV_ALIGN_TOP_RIGHT, -10, 15);
+    lv_obj_add_flag(wifi_label, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_ext_click_area(wifi_label, 15);
+    lv_obj_add_event_cb(wifi_label, wifi_icon_click_cb, LV_EVENT_CLICKED, NULL);
     
     lv_obj_t * list = lv_obj_create(settings_screen);
     lv_obj_set_size(list, LV_PCT(95), LV_PCT(70));
@@ -437,7 +532,7 @@ static void build_ui() {
     lv_obj_t * close_btn = lv_btn_create(settings_screen);
     lv_obj_set_size(close_btn, 100, 30);
     lv_obj_align(close_btn, LV_ALIGN_BOTTOM_MID, 0, -10);
-    lv_obj_add_event_cb(close_btn, close_btn_event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(close_btn, close_btn_event_handler, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(close_btn, get_lv_color(getCatppuccinFlavor(s_theme_flavor).blue), 0);
     
     lv_obj_t * close_label = lv_label_create(close_btn);
@@ -458,8 +553,8 @@ void setup() {
 
     lv_init();
     
-    // Allocate draw buffer (reduce from 40 lines to 10 lines to save heap for SSL)
-    const size_t buf_size = tft.width() * 10;
+    // Allocate draw buffer (reduce to 5 lines to save heap for SSL)
+    const size_t buf_size = tft.width() * 5;
     buf1 = (lv_color_t*)malloc(buf_size * sizeof(lv_color_t));
     lv_disp_draw_buf_init(&draw_buf, buf1, nullptr, buf_size);
 
@@ -501,7 +596,14 @@ void show() {
         s_default_screen = lv_scr_act();
     }
     build_ui();
+    if (!settings_screen) {
+        // OOM: cannot open settings screen right now
+        return;
+    }
     lv_scr_load(settings_screen);
+    s_visible = true;
+    s_pending_hide = false;
+    s_show_ms = millis();
 }
 
 void hide() {
