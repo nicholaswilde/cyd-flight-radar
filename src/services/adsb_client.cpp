@@ -1,4 +1,5 @@
 #include "utils_math.h"
+#include "utils_adsb.h"
 #include "services/adsb_client.h"
 
 #include <WiFiClientSecure.h>
@@ -34,89 +35,7 @@ WiFiClientSecure s_client;
 static char s_route_callsign[9] = {0};
 static char s_route_hex[7] = {0};
 
-// float utils::math::kmToNauticalMiles(float km) { return km / kKmPerNm; }
 
-bool readJsonFloat(const JsonObject& obj, const char* key, float* out) {
-  if (obj[key].is<float>() || obj[key].is<double>() || obj[key].is<int>()) {
-    *out = obj[key].as<float>();
-    return true;
-  }
-  return false;
-}
-
-bool isMilitary(const JsonObject& plane) {
-  return plane["dbFlags"].is<bool>() && plane["dbFlags"].as<bool>();
-}
-
-float pickNoseHeading(const JsonObject& plane) {
-  float v = 0.0f;
-  if (readJsonFloat(plane, "true_heading", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "mag_heading", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "track", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "dir", &v)) {
-    return v;
-  }
-  return 0.0f;
-}
-
-float pickTrackHeading(const JsonObject& plane) {
-  float v = 0.0f;
-  if (readJsonFloat(plane, "track", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "true_heading", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "mag_heading", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "dir", &v)) {
-    return v;
-  }
-  return 0.0f;
-}
-
-float pickGroundSpeed(const JsonObject& plane) {
-  float v = 0.0f;
-  if (readJsonFloat(plane, "gs", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "tas", &v)) {
-    return v;
-  }
-  if (readJsonFloat(plane, "ias", &v)) {
-    return v;
-  }
-  return 0.0f;
-}
-
-bool isOnGround(const JsonObject& plane) {
-  if (!plane["alt_baro"].is<const char*>()) {
-    return false;
-  }
-  return strcmp(plane["alt_baro"].as<const char*>(), "ground") == 0;
-}
-
-void copyJsonStringTrimmed(const JsonObject& obj, const char* key, char* out,
-                           size_t out_len) {
-  out[0] = '\0';
-  if (out_len == 0 || !obj[key].is<const char*>()) {
-    return;
-  }
-  const char* s = obj[key].as<const char*>();
-  size_t n = strnlen(s, out_len - 1);
-  while (n > 0 && s[n - 1] == ' ') {
-    --n;
-  }
-  memcpy(out, s, n);
-  out[n] = '\0';
-}
 
 bool isHelicopter(const JsonObject& plane) {
   if (plane["category"].is<const char*>()) {
@@ -150,8 +69,8 @@ void formatAltitudeTag(const JsonObject& plane, char* out, size_t out_len) {
   }
 
   float alt = 0.0f;
-  if (readJsonFloat(plane, "alt_baro", &alt) ||
-      readJsonFloat(plane, "alt_geom", &alt)) {
+  if (utils::adsb::readJsonFloat(plane, "alt_baro", &alt) ||
+      utils::adsb::readJsonFloat(plane, "alt_geom", &alt)) {
     if (!ui::radar::useMiles()) {
       snprintf(out, out_len, "%d m", static_cast<int>(lroundf(alt * 0.3048f)));
     } else {
@@ -162,17 +81,17 @@ void formatAltitudeTag(const JsonObject& plane, char* out, size_t out_len) {
 }
 
 void fillTagFields(Aircraft* ac, const JsonObject& plane) {
-  copyJsonStringTrimmed(plane, "hex", ac->hex, sizeof(ac->hex));
-  copyJsonStringTrimmed(plane, "flight", ac->callsign, sizeof(ac->callsign));
+  utils::adsb::copyJsonStringTrimmed(plane, "hex", ac->hex, sizeof(ac->hex));
+  utils::adsb::copyJsonStringTrimmed(plane, "flight", ac->callsign, sizeof(ac->callsign));
   if (ac->callsign[0] == '\0') {
-    copyJsonStringTrimmed(plane, "hex", ac->callsign, sizeof(ac->callsign));
+    utils::adsb::copyJsonStringTrimmed(plane, "hex", ac->callsign, sizeof(ac->callsign));
   }
 
-  copyJsonStringTrimmed(plane, "t", ac->type, sizeof(ac->type));
+  utils::adsb::copyJsonStringTrimmed(plane, "t", ac->type, sizeof(ac->type));
   formatAltitudeTag(plane, ac->alt, sizeof(ac->alt));
   
-  copyJsonStringTrimmed(plane, "r", ac->reg, sizeof(ac->reg));
-  copyJsonStringTrimmed(plane, "desc", ac->desc, sizeof(ac->desc));
+  utils::adsb::copyJsonStringTrimmed(plane, "r", ac->reg, sizeof(ac->reg));
+  utils::adsb::copyJsonStringTrimmed(plane, "desc", ac->desc, sizeof(ac->desc));
 }
 
 }  // namespace
@@ -358,11 +277,11 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     if (!plane["lat"].is<float>() || !plane["lon"].is<float>()) {
       continue;
     }
-    if (isOnGround(plane)) {
+    if (utils::adsb::isOnGround(plane)) {
       if (!ui::settings::isGroundAircraftEnabled()) continue;
     } else {
       float alt = 0.0f;
-      if (readJsonFloat(plane, "alt_baro", &alt) || readJsonFloat(plane, "alt_geom", &alt)) {
+      if (utils::adsb::readJsonFloat(plane, "alt_baro", &alt) || utils::adsb::readJsonFloat(plane, "alt_geom", &alt)) {
         if (alt > ui::settings::getMaxAltitudeFilter()) {
           continue;
         }
@@ -387,11 +306,11 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
 
     target_ac->lat = p_lat;
     target_ac->lon = p_lon;
-    target_ac->nose_deg = pickNoseHeading(plane);
-    target_ac->track_deg = pickTrackHeading(plane);
-    target_ac->gs_knots = pickGroundSpeed(plane);
+    target_ac->nose_deg = utils::adsb::pickNoseHeading(plane);
+    target_ac->track_deg = utils::adsb::pickTrackHeading(plane);
+    target_ac->gs_knots = utils::adsb::pickGroundSpeed(plane);
     target_ac->is_heli = isHelicopter(plane);
-    target_ac->is_military = isMilitary(plane);
+    target_ac->is_military = utils::adsb::isMilitary(plane);
     fillTagFields(target_ac, plane);
     
     target_ac->trail_size = 0;
