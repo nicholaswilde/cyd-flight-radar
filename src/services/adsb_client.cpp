@@ -1,3 +1,4 @@
+#include "utils_math.h"
 #include "services/adsb_client.h"
 
 #include <WiFiClientSecure.h>
@@ -16,7 +17,7 @@ namespace services::adsb {
 namespace {
 
 constexpr char kApiBase[] = "https://opendata.adsb.fi/api/v3/lat/";
-constexpr float kKmPerNm = 1.852f;
+// constexpr float kKmPerNm = 1.852f;
 constexpr int kConnectAttemptMs = 4000;
 constexpr unsigned long kRequestTimeoutMs = 10000;
 
@@ -33,7 +34,7 @@ WiFiClientSecure s_client;
 static char s_route_callsign[9] = {0};
 static char s_route_hex[7] = {0};
 
-float kmToNauticalMiles(float km) { return km / kKmPerNm; }
+// float utils::math::kmToNauticalMiles(float km) { return km / kKmPerNm; }
 
 bool readJsonFloat(const JsonObject& obj, const char* key, float* out) {
   if (obj[key].is<float>() || obj[key].is<double>() || obj[key].is<int>()) {
@@ -264,7 +265,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     s_route_hex[0] = '\0';
   }
 
-  const float dist_nm = kmToNauticalMiles(fetch_radius_km);
+  const float dist_nm = utils::math::kmToNauticalMiles(fetch_radius_km);
 
   int retries = 0;
   bool connected = false;
