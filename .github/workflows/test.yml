@@ -43,6 +43,8 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+    - name: Copy secrets
+      run: cp config/secrets.h.example config/secrets.h
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
