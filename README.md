@@ -15,7 +15,7 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
   * **Short Press (Screen On)**: Cycle through radar distances.
   * **Long Press (Screen On)**: Turn the screen off and pause rendering to save power.
   * **Short Press (Screen Off)**: Wake the display back up.
-* **On-Device Settings Menu**: Long-press the touch screen to bring up an LVGL-powered settings overlay. Configure preferences like radar sweep speed, radar radius, altitude limits, theme, and the maximum number of aircraft to track dynamically.
+* **On-Device Settings Menu**: Long-press the touch screen to bring up an LVGL-powered settings overlay. Configure preferences like radar sweep speed, radar radius, altitude limits, theme, and the maximum number of aircraft to track dynamically. Tap the Wi-Fi icon in the top right to view live network diagnostics (SSID, IP address, MAC address, and RSSI).
 * **Smart Symbols**: Automatically detects rotorcraft and displays them with a dedicated helicopter symbol and distinct color.
 * **Military Aircraft Detection**: Highlights military planes in a distinct peach color with a `[MIL]` tag.
 * **Accurate Projections**: Uses latitude-corrected scaling so east-west distances aren't distorted on the radar.
