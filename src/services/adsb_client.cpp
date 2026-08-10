@@ -37,48 +37,7 @@ static char s_route_hex[7] = {0};
 
 
 
-bool isHelicopter(const JsonObject& plane) {
-  if (plane["category"].is<const char*>()) {
-    const char* cat = plane["category"].as<const char*>();
-    if (strcmp(cat, "A7") == 0) {
-      return true;
-    }
-  }
-  if (plane["desc"].is<const char*>()) {
-    const char* desc = plane["desc"].as<const char*>();
-    if (strstr(desc, "HELICOPTER") != nullptr || strstr(desc, "ROTORCRAFT") != nullptr || strstr(desc, "Helicopter") != nullptr || strstr(desc, "Rotorcraft") != nullptr) {
-      return true;
-    }
-  }
-  return false;
-}
 
-void formatAltitudeTag(const JsonObject& plane, char* out, size_t out_len) {
-  out[0] = '\0';
-  if (out_len == 0) {
-    return;
-  }
-
-  if (plane["alt_baro"].is<const char*>()) {
-    const char* s = plane["alt_baro"].as<const char*>();
-    if (strcmp(s, "ground") == 0) {
-      strncpy(out, "GND", out_len - 1);
-      out[out_len - 1] = '\0';
-      return;
-    }
-  }
-
-  float alt = 0.0f;
-  if (utils::adsb::readJsonFloat(plane, "alt_baro", &alt) ||
-      utils::adsb::readJsonFloat(plane, "alt_geom", &alt)) {
-    if (!ui::radar::useMiles()) {
-      snprintf(out, out_len, "%d m", static_cast<int>(lroundf(alt * 0.3048f)));
-    } else {
-      snprintf(out, out_len, "%d ft", static_cast<int>(lroundf(alt)));
-    }
-    return;
-  }
-}
 
 void fillTagFields(Aircraft* ac, const JsonObject& plane) {
   utils::adsb::copyJsonStringTrimmed(plane, "hex", ac->hex, sizeof(ac->hex));
@@ -88,7 +47,7 @@ void fillTagFields(Aircraft* ac, const JsonObject& plane) {
   }
 
   utils::adsb::copyJsonStringTrimmed(plane, "t", ac->type, sizeof(ac->type));
-  formatAltitudeTag(plane, ac->alt, sizeof(ac->alt));
+  utils::adsb::formatAltitudeTag(plane, ac->alt, sizeof(ac->alt), ui::radar::useMiles());
   
   utils::adsb::copyJsonStringTrimmed(plane, "r", ac->reg, sizeof(ac->reg));
   utils::adsb::copyJsonStringTrimmed(plane, "desc", ac->desc, sizeof(ac->desc));
@@ -309,7 +268,7 @@ bool fetchUpdate(double center_lat, double center_lon, float fetch_radius_km) {
     target_ac->nose_deg = utils::adsb::pickNoseHeading(plane);
     target_ac->track_deg = utils::adsb::pickTrackHeading(plane);
     target_ac->gs_knots = utils::adsb::pickGroundSpeed(plane);
-    target_ac->is_heli = isHelicopter(plane);
+    target_ac->is_heli = utils::adsb::isHelicopter(plane);
     target_ac->is_military = utils::adsb::isMilitary(plane);
     fillTagFields(target_ac, plane);
     

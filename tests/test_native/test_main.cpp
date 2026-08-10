@@ -99,6 +99,43 @@ void test_copy_json_string_trimmed(void) {
     TEST_ASSERT_EQUAL_STRING("", buffer);
 }
 
+
+void test_is_helicopter(void) {
+    JsonDocument doc;
+    doc["category"] = "A7";
+    TEST_ASSERT_TRUE(utils::adsb::isHelicopter(doc.as<JsonObject>()));
+    doc["category"] = "A1";
+    TEST_ASSERT_FALSE(utils::adsb::isHelicopter(doc.as<JsonObject>()));
+    
+    doc.clear();
+    doc["desc"] = "Some HELICOPTER text";
+    TEST_ASSERT_TRUE(utils::adsb::isHelicopter(doc.as<JsonObject>()));
+    
+    doc.clear();
+    doc["desc"] = "A random plane";
+    TEST_ASSERT_FALSE(utils::adsb::isHelicopter(doc.as<JsonObject>()));
+}
+
+void test_format_altitude_tag(void) {
+    JsonDocument doc;
+    char buffer[16];
+    
+    doc["alt_baro"] = "ground";
+    utils::adsb::formatAltitudeTag(doc.as<JsonObject>(), buffer, sizeof(buffer), true);
+    TEST_ASSERT_EQUAL_STRING("GND", buffer);
+    
+    doc.clear();
+    doc["alt_baro"] = 35000;
+    // useMiles = true (displays feet natively)
+    utils::adsb::formatAltitudeTag(doc.as<JsonObject>(), buffer, sizeof(buffer), true);
+    TEST_ASSERT_EQUAL_STRING("35000 ft", buffer);
+    
+    // useMiles = false (displays meters)
+    utils::adsb::formatAltitudeTag(doc.as<JsonObject>(), buffer, sizeof(buffer), false);
+    // 35000 * 0.3048 = 10668
+    TEST_ASSERT_EQUAL_STRING("10668 m", buffer);
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_km_to_nm);
@@ -110,5 +147,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_pick_ground_speed);
     RUN_TEST(test_is_on_ground);
     RUN_TEST(test_copy_json_string_trimmed);
+    RUN_TEST(test_is_helicopter);
+    RUN_TEST(test_format_altitude_tag);
     return UNITY_END();
 }
