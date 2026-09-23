@@ -21,14 +21,32 @@ A real-time flight radar for the ESP32 Cheap Yellow Display (CYD) using the adsb
 * **Accurate Projections**: Uses latitude-corrected scaling so east-west distances aren't distorted on the radar.
 * **Connection Monitoring**: Automatically detects stale data and displays a warning banner if the connection to the ADS-B API is lost.
 * **Memory Optimized**: Employs zero-copy JSON parsing from local buffers to prevent `ArduinoJson` out-of-memory crashes. Smart distance-based aircraft eviction guarantees the closest planes are always shown, even in busy airspace.
-* **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `PlaneRadar-Setup-XXXX`) for configuring network credentials and radar coordinates.
+* **Easy Setup**: Built-in Wi-Fi captive portal (broadcasts as `cyd-flight-radar-XXXX`) for configuring network credentials and radar location coordinates.
 
 ## ⚙️ Configuration
 
+### Wi-Fi Credentials
 There are two ways to configure the Wi-Fi credentials for the radar:
 
-1. **Captive Portal**: On first boot, the device will host a Wi-Fi setup portal. Connect to the setup network to enter your network credentials and radar coordinates.
+1. **Captive Portal**: On first boot (or if connection fails), the device will host an Access Point named `cyd-flight-radar-XXXX` (where `XXXX` corresponds to the last 4 characters of the device MAC address). Connect to the setup network to enter your network credentials.
 2. **Hardcoded Credentials**: If you prefer to bake the credentials into the firmware, copy `config/secrets.h.example` to `config/secrets.h` and update it with your `WIFI_SSID` and `WIFI_PASSWORD`.
+
+### Radar Location Coordinates
+The radar center is determined by latitude and longitude coordinates. You can set them using either method:
+
+1. **Wi-Fi Setup Portal (Recommended)**:
+   - Connect to the `cyd-flight-radar-XXXX` setup network.
+   - Open a browser and navigate to `http://192.168.4.1` (if the portal does not open automatically).
+   - Enter your **Latitude** (e.g., `34.1031`) and **Longitude** (e.g., `-118.416`) in the location fields.
+   - Click **Save & Connect**. The coordinates will be stored in non-volatile storage (NVS) and will persist across reboots.
+2. **Compile-time Defaults**:
+   - If compiling from source, set your default fallback coordinates in [`config/config.h`](config/config.h):
+     ```cpp
+     // --- Radar center defaults (overridden via WiFi setup portal) ---
+     constexpr double kDefaultRadarLat = 33.942183;
+     constexpr double kDefaultRadarLon = -118.403560;
+     ```
+   *(Note: Coordinates saved via the captive portal take precedence over compile-time defaults).*
 
 ## :hammer_and_wrench: Hardware Supported
 Currently configured and tested on:
