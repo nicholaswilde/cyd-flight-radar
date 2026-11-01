@@ -73,8 +73,11 @@ Testing/
 
 # Gemini / Agent
 .gemini/
+.serena/
+.codegraph/
+.rtk/*
+!.rtk/filters.toml
 
 # Secrets
 secrets.h
-.codegraph/
 .env
